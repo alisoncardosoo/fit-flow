@@ -1,0 +1,636 @@
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSwipeable } from "react-swipeable";
+import { X, Check, ChevronLeft, ChevronRight, SkipForward, Minus, Plus, Sparkles, ImagePlus, Copy, Timer } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { RestTimer } from "@/components/RestTimer";
+import { InlineRestTimer } from "@/components/InlineRestTimer";
+import { ExerciseImage } from "@/components/ExerciseImage";
+import { ExerciseImagePicker } from "@/components/ExerciseImagePicker";
+import { SheetPicker } from "@/components/SheetPicker";
+import { toast } from "sonner";
+import { checkAndAwardBadges } from "@/lib/badges";
+import { startActiveSession, updateActiveSession, endActiveSession } from "@/lib/social";
+import { listSheets, type RoutineSheet } from "@/lib/sheets";
+import { prefetchExerciseImage, getUserOverride } from "@/lib/exerciseImageCache";
+
+type Item = {
+  id: string;
+  exercise_id: string;
+  sheet_id: string | null;
+  target_sets: number;
+  target_reps: number;
+  target_weight: number;
+  rest_seconds: number;
+  exercises: { id: string; name: string; muscle_group: string; image_url: string | null };
+};
+
+type SetEntry = { reps: number; weight: number; done: boolean };
+
+export default function Execute() {
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [phase, setPhase] = useState<"loading" | "picking" | "running">("loading");
+  const [sheets, setSheets] = useState<RoutineSheet[]>([]);
+  const [exerciseCounts, setExerciseCounts] = useState<Record<string, number>>({});
+  const [suggestedSheetId, setSuggestedSheetId] = useState<string | null>(null);
+  const [activeSheet, setActiveSheet] = useState<RoutineSheet | null>(null);
+
+  const [items, setItems] = useState<Item[]>([]);
+  const [workoutName, setWorkoutName] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [startedAt] = useState(Date.now());
+  const [currentEx, setCurrentEx] = useState(0);
+  const [setsByItem, setSetsByItem] = useState<Record<string, SetEntry[]>>({});
+  const [restOpen, setRestOpen] = useState(false);
+  const [restSeconds, setRestSeconds] = useState(60);
+  const [suggestedWeight, setSuggestedWeight] = useState<Record<string, number>>({});
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
+
+  // Tick a cada 1s para o cronômetro do treino. Recalcula a partir de `startedAt`
+  // (não acumula) — assim segue correto mesmo após o tab voltar do background.
+  useEffect(() => {
+    if (phase !== "running") return;
+    const update = () => setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    update();
+    const id = window.setInterval(update, 1000);
+    const onVisible = () => { if (document.visibilityState === "visible") update(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [phase, startedAt]);
+
+  function formatDuration(totalSec: number) {
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+  }
+
+  /* ---------------- INIT: load sheets + decide picking vs auto ---------------- */
+  useEffect(() => {
+    if (id && user) void bootstrap();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
+
+  async function bootstrap() {
+    if (!id || !user) return;
+    const [{ data: w }, sheetList, { data: allEx }] = await Promise.all([
+      supabase.from("workouts").select("name, last_sheet_id").eq("id", id).maybeSingle(),
+      listSheets(id),
+      supabase.from("workout_exercises").select("sheet_id").eq("workout_id", id),
+    ]);
+    if (!w) {
+      toast.error("Treino não encontrado");
+      navigate("/workouts");
+      return;
+    }
+    setWorkoutName(w.name);
+
+    // exercise count per sheet
+    const counts: Record<string, number> = {};
+    for (const e of allEx ?? []) if (e.sheet_id) counts[e.sheet_id] = (counts[e.sheet_id] ?? 0) + 1;
+    setExerciseCounts(counts);
+    setSheets(sheetList);
+
+    const populated = sheetList.filter((s) => (counts[s.id] ?? 0) > 0);
+    if (populated.length === 0) {
+      toast.error("Treino vazio — adicione exercícios primeiro");
+      navigate(`/workouts/${id}`);
+      return;
+    }
+
+    // Suggest next: based on workouts.last_sheet_id → use NEXT in order
+    let suggested: string | null = null;
+    if (w.last_sheet_id) {
+      const idx = populated.findIndex((s) => s.id === w.last_sheet_id);
+      if (idx >= 0) suggested = populated[(idx + 1) % populated.length].id;
+    }
+    if (!suggested) suggested = populated[0].id;
+    setSuggestedSheetId(suggested);
+
+    // URL param override (e.g. ?sheet=...)
+    const fromUrl = searchParams.get("sheet");
+    const preselected = fromUrl && populated.some((s) => s.id === fromUrl) ? fromUrl : null;
+
+    if (preselected) {
+      await startSession(preselected, sheetList, w.name);
+    } else if (populated.length === 1) {
+      await startSession(populated[0].id, sheetList, w.name);
+    } else {
+      setPhase("picking");
+    }
+  }
+
+  async function startSession(sheetId: string, sheetList: RoutineSheet[], wName: string) {
+    if (!id || !user) return;
+    const sheet = sheetList.find((s) => s.id === sheetId) ?? null;
+    setActiveSheet(sheet);
+
+    const { data: we } = await supabase
+      .from("workout_exercises")
+      .select("*, exercises(id, name, muscle_group, image_url)")
+      .eq("workout_id", id)
+      .eq("sheet_id", sheetId)
+      .order("position");
+    if (!we || we.length === 0) {
+      toast.error("Ficha vazia");
+      setPhase("picking");
+      return;
+    }
+    const list = we as Item[];
+    setItems(list);
+
+    // Init sets + weight suggestions.
+    // Regra: o `target_weight` configurado pelo usuário é a fonte de verdade.
+    // Apenas SUGERIMOS uma progressão (+2.5kg) quando o último log igualou
+    // ou superou o alvo configurado E o usuário bateu as reps planejadas.
+    // Caso contrário, mantemos exatamente o que o usuário definiu na ficha.
+    const init: Record<string, SetEntry[]> = {};
+    const sugg: Record<string, number> = {};
+    for (const it of list) {
+      const targetWeight = Number(it.target_weight ?? 0);
+      const { data: lastSet } = await supabase
+        .from("set_logs")
+        .select("weight, reps")
+        .eq("user_id", user.id)
+        .eq("exercise_id", it.exercise_id)
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const lastWeight = lastSet ? Number(lastSet.weight) : 0;
+      const hitTargetReps = !!lastSet && lastSet.reps >= it.target_reps;
+      const matchedTarget = lastWeight >= targetWeight && targetWeight > 0;
+
+      const startWeight =
+        hitTargetReps && matchedTarget
+          ? Math.round((lastWeight + 2.5) * 2) / 2
+          : targetWeight;
+
+      sugg[it.id] = startWeight;
+      init[it.id] = Array.from({ length: it.target_sets }, () => ({
+        reps: it.target_reps,
+        weight: startWeight,
+        done: false,
+      }));
+    }
+    setSetsByItem(init);
+    setSuggestedWeight(sugg);
+
+    const sessionLabel = sheet ? `${wName} · Ficha ${sheet.name}` : wName;
+    const { data: session } = await supabase
+      .from("workout_sessions")
+      .insert({
+        user_id: user.id,
+        workout_id: id,
+        sheet_id: sheetId,
+        workout_name: sessionLabel,
+      })
+      .select()
+      .single();
+    if (session) {
+      setSessionId(session.id);
+      void startActiveSession({
+        user_id: user.id,
+        session_id: session.id,
+        workout_name: sessionLabel,
+        total_exercises: list.length,
+        current_exercise_name: list[0]?.exercises.name ?? "",
+      });
+    }
+    setPhase("running");
+  }
+
+  const current = items[currentEx];
+  const total = items.length;
+  const progress = useMemo(() => {
+    if (!total) return 0;
+    let done = 0;
+    let totalSets = 0;
+    for (const it of items) {
+      const s = setsByItem[it.id] ?? [];
+      done += s.filter((e) => e.done).length;
+      totalSets += s.length;
+    }
+    return totalSets ? (done / totalSets) * 100 : 0;
+  }, [setsByItem, items, total]);
+
+  const handlers = useSwipeable({
+    onSwipedLeft: () => goNext(),
+    onSwipedRight: () => goPrev(),
+    trackMouse: true,
+    preventScrollOnSwipe: true,
+    delta: 50,
+  });
+
+  function goNext() {
+    setCurrentEx((c) => {
+      const next = Math.min(c + 1, total - 1);
+      const nextItem = items[next];
+      if (user && nextItem) void updateActiveSession(user.id, next, nextItem.exercises.name);
+      return next;
+    });
+  }
+  function goPrev() {
+    setCurrentEx((c) => {
+      const prev = Math.max(c - 1, 0);
+      const prevItem = items[prev];
+      if (user && prevItem) void updateActiveSession(user.id, prev, prevItem.exercises.name);
+      return prev;
+    });
+  }
+
+  useEffect(() => {
+    return () => {
+      if (user) void endActiveSession(user.id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Prefetch dos próximos 2 exercícios para troca de cards instantânea.
+  useEffect(() => {
+    if (!items.length) return;
+    for (const offset of [1, 2]) {
+      const next = items[currentEx + offset];
+      if (!next) continue;
+      void prefetchExerciseImage({
+        exerciseId: next.exercise_id,
+        name: next.exercises.name,
+        existingUrl: next.exercises.image_url,
+      });
+    }
+    // Também aquece o atual (cobre o caso de ?sheet=... ou retorno via swipe).
+    const cur = items[currentEx];
+    if (cur) {
+      void prefetchExerciseImage({
+        exerciseId: cur.exercise_id,
+        name: cur.exercises.name,
+        existingUrl: cur.exercises.image_url,
+      });
+    }
+  }, [items, currentEx]);
+
+  async function completeSet(setIdx: number) {
+    if (!current || !sessionId || !user) return;
+    const itemId = current.id;
+    const exerciseId = current.exercise_id;
+    const restSec = current.rest_seconds;
+
+    // Functional update — evita closure stale ao tocar rapidamente vários sets.
+    let savedEntry: SetEntry | null = null;
+    let allDoneAfter = false;
+    setSetsByItem((cur) => {
+      const sets = [...(cur[itemId] ?? [])];
+      const e = sets[setIdx];
+      if (!e || e.done) return cur;
+      const updated: SetEntry = { ...e, done: true };
+      savedEntry = updated;
+      sets[setIdx] = updated;
+      allDoneAfter = sets.every((s) => s.done);
+      return { ...cur, [itemId]: sets };
+    });
+
+    if (!savedEntry) return; // Já estava marcado.
+    const entry: SetEntry = savedEntry;
+
+    const { error } = await supabase.from("set_logs").insert({
+      session_id: sessionId,
+      user_id: user.id,
+      exercise_id: exerciseId,
+      set_number: setIdx + 1,
+      reps: entry.reps,
+      weight: entry.weight,
+      rest_seconds: restSec,
+    });
+
+    if (error) {
+      // Reverte o "feito" caso o INSERT falhe — assim o usuário sabe que precisa
+      // tentar de novo (em vez de o card mentir que salvou).
+      setSetsByItem((cur) => {
+        const sets = [...(cur[itemId] ?? [])];
+        if (sets[setIdx]) sets[setIdx] = { ...sets[setIdx], done: false };
+        return { ...cur, [itemId]: sets };
+      });
+      toast.error("Não foi possível salvar a série. Toque novamente.");
+      return;
+    }
+
+    if ("vibrate" in navigator) navigator.vibrate(50);
+
+    const hasNext = currentEx < total - 1;
+    if (allDoneAfter && hasNext) {
+      setRestSeconds(restSec);
+    } else if (!allDoneAfter) {
+      setRestSeconds(restSec);
+      setRestOpen(true);
+    }
+  }
+
+  function adjustWeight(setIdx: number, delta: number) {
+    if (!current) return;
+    const itemId = current.id;
+    setSetsByItem((cur) => {
+      const sets = [...(cur[itemId] ?? [])];
+      const s = sets[setIdx];
+      if (!s || s.done) return cur;
+      sets[setIdx] = {
+        ...s,
+        weight: Math.max(0, Math.round((s.weight + delta) * 2) / 2),
+      };
+      return { ...cur, [itemId]: sets };
+    });
+  }
+
+  function adjustReps(setIdx: number, delta: number) {
+    if (!current) return;
+    const itemId = current.id;
+    setSetsByItem((cur) => {
+      const sets = [...(cur[itemId] ?? [])];
+      const s = sets[setIdx];
+      if (!s || s.done) return cur;
+      sets[setIdx] = { ...s, reps: Math.max(0, s.reps + delta) };
+      return { ...cur, [itemId]: sets };
+    });
+  }
+
+  function copyToRemaining(setIdx: number) {
+    if (!current) return;
+    const itemId = current.id;
+    let applied = 0;
+    setSetsByItem((cur) => {
+      const sets = [...(cur[itemId] ?? [])];
+      const source = sets[setIdx];
+      if (!source) return cur;
+      for (let i = setIdx + 1; i < sets.length; i++) {
+        if (sets[i].done) continue;
+        sets[i] = { ...sets[i], reps: source.reps, weight: source.weight };
+        applied++;
+      }
+      return { ...cur, [itemId]: sets };
+    });
+    if (applied > 0) {
+      toast.success(
+        `Copiado para ${applied} série${applied > 1 ? "s" : ""} restante${applied > 1 ? "s" : ""}`,
+      );
+      if ("vibrate" in navigator) navigator.vibrate(30);
+    } else {
+      toast.info("Nenhuma série pendente para copiar");
+    }
+  }
+
+  async function finish() {
+    if (!sessionId || !user) return navigate("/");
+    const totalVolume = Object.values(setsByItem).flat().filter((s) => s.done).reduce((a, s) => a + s.reps * s.weight, 0);
+    const duration = Math.round((Date.now() - startedAt) / 1000);
+    await supabase
+      .from("workout_sessions")
+      .update({
+        finished_at: new Date().toISOString(),
+        duration_seconds: duration,
+        total_volume: totalVolume,
+      })
+      .eq("id", sessionId);
+    void endActiveSession(user.id);
+    toast.success("Treino concluído! 💪", {
+      description: `Duração: ${formatDuration(duration)} · Volume: ${Math.round(totalVolume)}kg`,
+    });
+
+    try {
+      const newBadges = await checkAndAwardBadges(user.id);
+      for (const b of newBadges) {
+        toast.success(`🏆 Medalha desbloqueada: ${b.title}`, { description: b.description, duration: 5000 });
+      }
+    } catch (e) {
+      console.error("Badge check failed", e);
+    }
+    navigate("/");
+  }
+
+  /* ---------------- RENDER ---------------- */
+  if (phase === "loading") {
+    return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Carregando treino…</div>;
+  }
+
+  if (phase === "picking") {
+    return (
+      <>
+        <div className="flex min-h-screen items-center justify-center px-5 text-center text-muted-foreground">
+          <div>
+            <div className="mb-3 font-display text-lg font-bold text-foreground">{workoutName}</div>
+            <p className="text-sm">Selecione a ficha do dia</p>
+          </div>
+        </div>
+        <SheetPicker
+          open
+          onClose={() => navigate(`/workouts/${id}`)}
+          sheets={sheets}
+          suggestedId={suggestedSheetId}
+          exerciseCounts={exerciseCounts}
+          onPick={(sid) => void startSession(sid, sheets, workoutName)}
+        />
+      </>
+    );
+  }
+
+  if (!current) {
+    return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Carregando…</div>;
+  }
+
+  const sets = setsByItem[current.id] ?? [];
+  const wasUpgraded = suggestedWeight[current.id] > current.target_weight && current.target_weight > 0;
+  const allSetsDone = sets.length > 0 && sets.every((s) => s.done);
+  const hasNext = currentEx < total - 1;
+  const showInlineRest = allSetsDone && hasNext;
+  const nextExerciseName = hasNext ? items[currentEx + 1]?.exercises.name : "";
+
+  return (
+    <div className="relative min-h-screen bg-background pb-8">
+      <div className="sticky top-0 z-30 bg-background/80 px-5 pb-3 backdrop-blur safe-top">
+        <div className="flex items-center justify-between">
+          <button onClick={() => navigate(-1)} className="rounded-xl bg-secondary p-2"><X className="h-5 w-5" /></button>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground">
+              {currentEx + 1} de {total}
+              {activeSheet && <span className="ml-1.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">Ficha {activeSheet.name}</span>}
+            </div>
+            <div className="font-display text-sm font-bold">{workoutName}</div>
+            <div
+              className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold tabular-nums text-primary"
+              aria-label="Tempo decorrido do treino"
+            >
+              <Timer className="h-3 w-3" />
+              {formatDuration(elapsedSec)}
+            </div>
+          </div>
+          <Button onClick={finish} size="sm" className="rounded-xl bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
+            Finalizar
+          </Button>
+        </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
+          <motion.div className="h-full bg-primary" initial={{ width: 0 }} animate={{ width: `${progress}%` }} />
+        </div>
+      </div>
+
+      <div {...handlers} className="px-5 pt-6">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current.id}
+            initial={{ opacity: 0, x: 60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -60 }}
+            transition={{ type: "spring", stiffness: 220, damping: 24 }}
+            className="card-premium overflow-hidden rounded-3xl"
+          >
+            <div className="relative">
+              <ExerciseImage
+                exerciseId={current.exercise_id}
+                name={current.exercises.name}
+                muscleGroup={current.exercises.muscle_group}
+                imageUrl={current.exercises.image_url}
+                onResolved={(url) => {
+                  setItems((cur) =>
+                    cur.map((it) =>
+                      it.id === current.id ? { ...it, exercises: { ...it.exercises, image_url: url } } : it,
+                    ),
+                  );
+                }}
+                className="aspect-[16/10] w-full"
+                rounded="rounded-none"
+                fallbackSize="lg"
+              />
+              <button
+                onClick={() => setImagePickerOpen(true)}
+                className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-2 text-xs font-semibold backdrop-blur-md shadow-lg transition hover:bg-background"
+                title="Trocar imagem"
+              >
+                <ImagePlus className="h-3.5 w-3.5" />
+                Trocar imagem
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="text-xs font-semibold uppercase tracking-wider text-primary">{current.exercises.muscle_group}</div>
+              <h2 className="mt-1 font-display text-2xl font-bold">{current.exercises.name}</h2>
+
+              {wasUpgraded && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-2 text-xs">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span>Sugerimos <strong>{suggestedWeight[current.id]}kg</strong> com base no seu histórico</span>
+                </div>
+              )}
+
+              <div className="mt-5 space-y-2">
+                {sets.map((s, i) => (
+                  <div key={i} className={`flex items-center gap-2 rounded-2xl p-3 transition ${s.done ? "bg-primary/15 border border-primary/30" : "bg-secondary border border-transparent"}`}>
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${s.done ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>
+                      {i + 1}
+                    </div>
+                    <div className="flex flex-1 items-center gap-1">
+                      <button onClick={() => adjustWeight(i, -2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
+                      <div className="flex-1 text-center">
+                        <div className="text-base font-bold">{s.weight}</div>
+                        <div className="text-[9px] text-muted-foreground">kg</div>
+                      </div>
+                      <button onClick={() => adjustWeight(i, 2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
+                    </div>
+                    <div className="flex flex-1 items-center gap-1">
+                      <button onClick={() => adjustReps(i, -1)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
+                      <div className="flex-1 text-center">
+                        <div className="text-base font-bold">{s.reps}</div>
+                        <div className="text-[9px] text-muted-foreground">reps</div>
+                      </div>
+                      <button onClick={() => adjustReps(i, 1)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
+                    </div>
+                    <button
+                      onClick={() => copyToRemaining(i)}
+                      disabled={i >= sets.length - 1 || sets.slice(i + 1).every((x) => x.done)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition hover:bg-primary/15 hover:text-primary disabled:opacity-30"
+                      title="Copiar reps e carga para as séries seguintes"
+                      aria-label="Copiar para as séries seguintes"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => completeSet(i)}
+                      disabled={s.done}
+                      className={`flex h-10 w-10 items-center justify-center rounded-full transition ${s.done ? "bg-primary text-primary-foreground" : "bg-primary/20 text-primary hover:bg-primary hover:text-primary-foreground"}`}
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 flex justify-between text-xs text-muted-foreground">
+                <span>Pausa: {current.rest_seconds}s</span>
+                <button onClick={() => goNext()} className="flex items-center gap-1 font-semibold text-primary">
+                  Pular <SkipForward className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showInlineRest && (
+            <div className="mt-4">
+              <InlineRestTimer
+                key={current.id}
+                seconds={current.rest_seconds}
+                title={`Próximo: ${nextExerciseName}`}
+                onSkip={() => goNext()}
+                onComplete={() => goNext()}
+              />
+            </div>
+          )}
+        </AnimatePresence>
+
+        <div className="mt-5 flex items-center justify-between">
+          <button onClick={goPrev} disabled={currentEx === 0} className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary disabled:opacity-30">
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div className="flex gap-1.5">
+            {items.map((_, i) => (
+              <div key={i} className={`h-1.5 rounded-full transition-all ${i === currentEx ? "w-6 bg-primary" : "w-1.5 bg-secondary"}`} />
+            ))}
+          </div>
+          <button onClick={goNext} disabled={currentEx === total - 1} className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary disabled:opacity-30">
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">Deslize ← → para trocar de exercício</p>
+      </div>
+
+      <RestTimer open={restOpen} seconds={restSeconds} onClose={() => setRestOpen(false)} />
+
+      {current && (
+        <ExerciseImagePicker
+          open={imagePickerOpen}
+          onOpenChange={setImagePickerOpen}
+          exerciseId={current.exercise_id}
+          exerciseName={current.exercises.name}
+          hasDefaultImage={!!(current.exercises.image_url || getUserOverride(current.exercise_id))}
+          onChanged={(newUrl) => {
+            setItems((cur) =>
+              cur.map((it) =>
+                it.exercise_id === current.exercise_id
+                  ? { ...it, exercises: { ...it.exercises, image_url: newUrl ?? it.exercises.image_url } }
+                  : it,
+              ),
+            );
+          }}
+        />
+      )}
+    </div>
+  );
+}
