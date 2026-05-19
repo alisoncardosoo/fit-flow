@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, SkipForward } from "lucide-react";
 
@@ -11,23 +11,32 @@ interface Props {
 export function RestTimer({ open, seconds, onClose }: Props) {
   const [remaining, setRemaining] = useState(seconds);
   const [total, setTotal] = useState(seconds);
+  const completedRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setRemaining(seconds);
     setTotal(seconds);
+    completedRef.current = false;
   }, [open, seconds]);
 
   useEffect(() => {
     if (!open) return;
-    if (remaining <= 0) {
-      if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
-      const t = setTimeout(() => onClose(), 600);
-      return () => clearTimeout(t);
-    }
-    const t = setInterval(() => setRemaining((r) => r - 1), 1000);
+    const t = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          if (!completedRef.current) {
+            completedRef.current = true;
+            if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
+            setTimeout(() => onClose(), 600);
+          }
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
     return () => clearInterval(t);
-  }, [remaining, open, onClose]);
+  }, [open, onClose]);
 
   const adjust = (delta: number) => {
     setRemaining((r) => Math.max(0, r + delta));
