@@ -104,14 +104,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada");
+    const { data: keyRow } = await authClient
+      .from("user_api_keys")
+      .select("api_key")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const apiKey = keyRow?.api_key?.trim();
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "Configure sua chave de API em Perfil > Configurações." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const muscle = MUSCLE_PT[ex.muscle_group] ?? ex.muscle_group;
     const equip = EQUIP_PT[ex.equipment] ?? ex.equipment;
     const prompt = `Ilustração 3D minimalista, estilo render limpo, de uma pessoa atlética executando o exercício "${ex.name}" focando em ${muscle} usando ${equip}. Fundo escuro liso (cinza-grafite #1a1a1a). Iluminação dramática com luz de destaque verde-lima (#CBFF9A). Pose técnica correta, em movimento. Sem texto, sem marcas d'água, sem logos. Composição centralizada, formato quadrado. Estética premium tipo app fitness moderno.`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({

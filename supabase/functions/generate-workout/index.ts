@@ -18,8 +18,17 @@ Deno.serve(async (req) => {
     if (!user) return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { focus, duration, equipment } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const { data: keyRow } = await supabase
+      .from("user_api_keys")
+      .select("api_key")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const AI_PROVIDER_API_KEY = keyRow?.api_key?.trim();
+    if (!AI_PROVIDER_API_KEY) {
+      return new Response(JSON.stringify({ error: "Configure sua chave de API em Perfil > Configurações." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get available exercises
     const { data: exercises } = await supabase.from("exercises").select("id, name, muscle_group, equipment").eq("is_public", true);
@@ -36,9 +45,9 @@ Não inclua texto fora do JSON. Use apenas IDs da lista fornecida. Quantidade de
 
     const userPrompt = `Foco: ${focus}\nDuração: ${duration} minutos\nEquipamento: ${equipment}\n\nBiblioteca (id|nome|grupo|equipamento):\n${exList}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${AI_PROVIDER_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [

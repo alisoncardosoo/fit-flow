@@ -34,12 +34,7 @@ Visualmente, a identidade do app é:
 
 ### Observação importante sobre naming
 
-Existe um detalhe de implementação relevante:
-
-- a interface, metadados SEO e telas usam `FitFlow`;
-- o `manifest.webmanifest` ainda usa `Flow` como `name` e `short_name`.
-
-Isso sugere um resquício de naming anterior ou um nome curto de PWA ainda não alinhado com a marca principal.
+Atualmente, a interface, metadados SEO e PWA estão alinhados com a marca `FitFlow`.
 
 ## O Que o App Entrega
 
@@ -49,7 +44,7 @@ O app já possui:
 
 - cadastro com email e senha;
 - login com email e senha;
-- login com Apple via `@lovable.dev/cloud-auth-js`;
+- login social via Supabase OAuth;
 - fluxo de recuperação e redefinição de senha;
 - onboarding em 3 etapas;
 - configuração inicial de username público.
@@ -363,7 +358,7 @@ Em alto nível, a jornada ideal pensada pelo produto é:
 
 ### Recursos complementares
 
-- Lovable Auth para OAuth Apple
+- Supabase OAuth para provedores sociais
 - Web Push com Service Worker
 - HTML-to-Image para exportação de cards
 
@@ -565,6 +560,8 @@ Crie as variáveis necessárias para o frontend:
 ```env
 VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_APP_URL=
+VITE_AUTH_REDIRECT_URL=
 ```
 
 Além disso, as Edge Functions dependem de segredos no Supabase:
@@ -573,11 +570,149 @@ Além disso, as Edge Functions dependem de segredos no Supabase:
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-LOVABLE_API_KEY=
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=
 ```
+
+`AI_PROVIDER_API_KEY` global é opcional. O app prioriza a chave individual de cada usuário (configurada em `Perfil > Configurações`).
+
+### Checklist de Secrets por Ambiente
+
+#### Dev (local)
+
+- Frontend (`.env`):
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY`
+  - `VITE_APP_URL=http://localhost:8080`
+  - `VITE_AUTH_REDIRECT_URL=http://localhost:8080/reset-password`
+- Supabase Functions (secrets no projeto Supabase):
+  - `SUPABASE_URL`
+  - `SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `VAPID_PUBLIC_KEY`
+  - `VAPID_PRIVATE_KEY`
+  - `VAPID_SUBJECT`
+
+#### Staging
+
+- Frontend:
+  - `VITE_APP_URL=https://staging.seu-dominio.com`
+  - `VITE_AUTH_REDIRECT_URL=https://staging.seu-dominio.com/reset-password`
+- Supabase Functions:
+  - Mesmo conjunto de secrets do `dev`, mas com chaves do projeto de staging.
+- Auth Providers (Supabase Dashboard):
+  - `Site URL` e `Redirect URLs` apontando para staging.
+
+#### Produção
+
+- Frontend:
+  - `VITE_APP_URL=https://seu-dominio.com`
+  - `VITE_AUTH_REDIRECT_URL=https://seu-dominio.com/reset-password`
+- Supabase Functions:
+  - Mesmo conjunto de secrets do `staging`, com chaves de produção.
+- Auth Providers (Supabase Dashboard):
+  - `Site URL` e `Redirect URLs` de produção.
+- Segurança:
+  - `functions.send-push.verify_jwt = true` em `supabase/config.toml`.
+
+### Runbook de Migração (Supabase)
+
+Use este passo a passo quando for publicar em `staging` e `produção`.
+
+#### 1) Instalar CLI e autenticar
+
+```bash
+brew install supabase/tap/supabase
+supabase login
+```
+
+#### 2) Staging
+
+```bash
+# dentro da raiz do projeto
+supabase link --project-ref <STAGING_PROJECT_REF>
+supabase db push
+
+supabase secrets set \
+  SUPABASE_URL=https://<STAGING_PROJECT_REF>.supabase.co \
+  SUPABASE_ANON_KEY=<STAGING_ANON_KEY> \
+  SUPABASE_SERVICE_ROLE_KEY=<STAGING_SERVICE_ROLE_KEY> \
+  VAPID_PUBLIC_KEY=<STAGING_VAPID_PUBLIC_KEY> \
+  VAPID_PRIVATE_KEY=<STAGING_VAPID_PRIVATE_KEY> \
+  VAPID_SUBJECT=mailto:<SEU_EMAIL>
+
+supabase functions deploy motivation
+supabase functions deploy generate-workout
+supabase functions deploy import-workout-from-image
+supabase functions deploy reprocess-workout
+supabase functions deploy suggest-exercises
+supabase functions deploy ai-insights
+supabase functions deploy generate-exercise-image
+supabase functions deploy send-push
+```
+
+No Supabase Dashboard (staging):
+- `Authentication > URL Configuration > Site URL`: `https://staging.seu-dominio.com`
+- `Redirect URLs`:
+  - `https://staging.seu-dominio.com`
+  - `https://staging.seu-dominio.com/reset-password`
+
+No deploy frontend (staging):
+- `VITE_SUPABASE_URL=https://<STAGING_PROJECT_REF>.supabase.co`
+- `VITE_SUPABASE_PUBLISHABLE_KEY=<STAGING_PUBLISHABLE_KEY>`
+- `VITE_APP_URL=https://staging.seu-dominio.com`
+- `VITE_AUTH_REDIRECT_URL=https://staging.seu-dominio.com/reset-password`
+
+#### 3) Produção
+
+```bash
+# dentro da raiz do projeto
+supabase link --project-ref <PROD_PROJECT_REF>
+supabase db push
+
+supabase secrets set \
+  SUPABASE_URL=https://<PROD_PROJECT_REF>.supabase.co \
+  SUPABASE_ANON_KEY=<PROD_ANON_KEY> \
+  SUPABASE_SERVICE_ROLE_KEY=<PROD_SERVICE_ROLE_KEY> \
+  VAPID_PUBLIC_KEY=<PROD_VAPID_PUBLIC_KEY> \
+  VAPID_PRIVATE_KEY=<PROD_VAPID_PRIVATE_KEY> \
+  VAPID_SUBJECT=mailto:<SEU_EMAIL>
+
+supabase functions deploy motivation
+supabase functions deploy generate-workout
+supabase functions deploy import-workout-from-image
+supabase functions deploy reprocess-workout
+supabase functions deploy suggest-exercises
+supabase functions deploy ai-insights
+supabase functions deploy generate-exercise-image
+supabase functions deploy send-push
+```
+
+No Supabase Dashboard (produção):
+- `Authentication > URL Configuration > Site URL`: `https://seu-dominio.com`
+- `Redirect URLs`:
+  - `https://seu-dominio.com`
+  - `https://seu-dominio.com/reset-password`
+
+No deploy frontend (produção):
+- `VITE_SUPABASE_URL=https://<PROD_PROJECT_REF>.supabase.co`
+- `VITE_SUPABASE_PUBLISHABLE_KEY=<PROD_PUBLISHABLE_KEY>`
+- `VITE_APP_URL=https://seu-dominio.com`
+- `VITE_AUTH_REDIRECT_URL=https://seu-dominio.com/reset-password`
+
+#### 4) Verificação pós-deploy (go-live)
+
+1. Criar conta por email/senha.
+2. Login/logout.
+3. Reset de senha via email.
+4. Login social (Google/Apple).
+5. Criar treino.
+6. Importar treino por imagem.
+7. Gerar treino com IA.
+8. Upload de imagem de exercício.
+9. Receber notificação push.
+10. Rodar `npm run build` no branch final.
 
 ### Desenvolvimento
 
@@ -642,7 +777,7 @@ Para rodar o ambiente completo, o fluxo esperado é usar a CLI do Supabase para:
 ### Pontos de atenção
 
 - o README original estava vazio e agora passa a documentar o projeto;
-- há naming misto entre `FitFlow` e `Flow`;
+- o branding principal está padronizado como `FitFlow`;
 - o arquivo de testes atual tem apenas um teste de exemplo;
 - por depender de Supabase, IA e push, parte do produto exige configuração externa para funcionar por completo.
 

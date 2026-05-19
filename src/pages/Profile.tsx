@@ -48,6 +48,8 @@ export default function Profile() {
   const [defaultSets, setDefaultSets] = useState(3);
   const [defaultReps, setDefaultReps] = useState(10);
   const [defaultRest, setDefaultRest] = useState(60);
+  const [apiKey, setApiKey] = useState("");
+  const [hasApiKey, setHasApiKey] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const { data, isLoading: loading } = useQuery({
@@ -74,6 +76,23 @@ export default function Profile() {
     setDefaultReps(prof.default_reps ?? 10);
     setDefaultRest(prof.default_rest_seconds ?? 60);
   }, [data]);
+
+  useEffect(() => {
+    async function loadApiKeyState() {
+      if (!user) return;
+      const { data: row, error } = await supabase
+        .from("user_api_keys")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (error) {
+        toast.error("Não foi possível carregar o status da chave de IA.");
+        return;
+      }
+      setHasApiKey(!!row);
+    }
+    loadApiKeyState();
+  }, [user]);
 
   async function save() {
     if (!user) return;
@@ -107,6 +126,18 @@ export default function Profile() {
         default_reps: defaultReps,
         default_rest_seconds: defaultRest,
       });
+
+      const normalizedApiKey = apiKey.trim();
+      if (normalizedApiKey.length > 0) {
+        const { error: keyErr } = await supabase.from("user_api_keys").upsert(
+          { user_id: user.id, api_key: normalizedApiKey },
+          { onConflict: "user_id" },
+        );
+        if (keyErr) throw keyErr;
+        setHasApiKey(true);
+        setApiKey("");
+      }
+
       toast.success("Perfil atualizado");
       queryClient.invalidateQueries({ queryKey: ["profile-page", user.id] });
       queryClient.invalidateQueries({ queryKey: ["dashboard", user.id] });
@@ -171,6 +202,24 @@ export default function Profile() {
           <div className="card-premium space-y-4 rounded-[24px] p-5">
             <h3 className="font-display text-base font-bold tracking-tight">Configurações</h3>
             <PushToggle />
+            <div className="rounded-2xl border border-border/40 bg-background/30 p-4">
+              <h4 className="font-display text-sm font-bold tracking-tight">Chave de API (IA)</h4>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Use sua própria chave para recursos de IA. Ela fica vinculada à sua conta.
+              </p>
+              <div className="mt-3 space-y-2">
+                <Input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={hasApiKey ? "Já configurada. Cole para atualizar." : "Cole sua chave de API"}
+                  className="h-12 rounded-2xl border-border bg-secondary"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Status: {hasApiKey ? "configurada" : "não configurada"}
+                </p>
+              </div>
+            </div>
             <div>
               <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted-foreground">Nome</label>
               <Input value={name} onChange={(e) => setName(e.target.value)} className="h-12 rounded-2xl border-border bg-secondary" />

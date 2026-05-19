@@ -1,20 +1,49 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2.95.0/cors";
+import { createClient } from "npm:@supabase/supabase-js@2.95.0";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { muscle_group, available_names } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const { data: keyRow } = await supabase
+      .from("user_api_keys")
+      .select("api_key")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const AI_PROVIDER_API_KEY = keyRow?.api_key?.trim();
+    if (!AI_PROVIDER_API_KEY) {
+      return new Response(JSON.stringify({ error: "Configure sua chave de API em Perfil > Configurações." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const systemPrompt = `Você é um personal trainer experiente. Sugira 5 exercícios eficazes para o grupo muscular pedido. Responda APENAS com uma lista numerada, em português, sem explicações longas. Cada item: "Nome do exercício — breve dica (máx 12 palavras)".`;
 
     const userPrompt = `Grupo muscular: ${muscle_group}. Já temos na biblioteca: ${(available_names || []).slice(0, 30).join(", ")}. Sugira 5 exercícios complementares ou variações úteis.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${AI_PROVIDER_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [

@@ -1,11 +1,11 @@
-/* Premium Web Push service worker for Flow.
+/* Premium Web Push service worker for FitFlow.
    - Rich title/body with @username highlighted
    - Per-type emoji + accent
    - Action buttons (Ver / Marcar como lida)
    - Vibration pattern
    - Forwards to open clients so the app can show an in-app premium toast. */
 
-const APP_NAME = "Flow";
+const APP_NAME = "FitFlow";
 const ICON = "/icon-192.png";
 const BADGE = "/icon-192.png";
 
@@ -65,7 +65,7 @@ self.addEventListener("push", (event) => {
     body,
     icon: ICON,
     badge: BADGE,
-    tag: data.notification_id || data.type || "flow-notif",
+    tag: data.notification_id || data.type || "fitflow-notif",
     renotify: true,
     requireInteraction: false,
     vibrate: [60, 30, 60],

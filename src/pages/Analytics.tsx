@@ -276,7 +276,7 @@ export default function Analytics() {
         ))}
       </div>
 
-      {/* ===== AI INSIGHTS (Lovable AI) ===== */}
+      {/* ===== AI INSIGHTS (AI) ===== */}
       <AIInsightsCard />
 
       {/* ===== COMPARAÇÃO DE PERÍODOS ===== */}

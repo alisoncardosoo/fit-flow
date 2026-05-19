@@ -32,15 +32,12 @@ export function isPushSupported(): boolean {
   );
 }
 
-/** Avoid registering SW inside Lovable preview iframes. */
+/** Avoid registering SW inside known preview iframes. */
 function isPreviewContext(): boolean {
   try {
     const inIframe = window.self !== window.top;
     const host = window.location.hostname;
-    const isPreview =
-      host.includes("id-preview--") ||
-      host.includes("lovableproject.com") ||
-      host.endsWith("lovable.app") === false && host.includes("lovable");
+    const isPreview = host.includes("id-preview--");
     return inIframe || isPreview;
   } catch {
     return true;

@@ -14,7 +14,7 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_SUBJECT =
-  Deno.env.get("VAPID_SUBJECT") ?? "mailto:noreply@flow-flow-app.lovable.app";
+  Deno.env.get("VAPID_SUBJECT") ?? "mailto:noreply@fitflow.app";
 
 // ---------- base64url helpers ----------
 function b64uToBytes(s: string): Uint8Array {

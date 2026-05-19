@@ -120,8 +120,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
+    const { data: keyRow } = await supabase
+      .from("user_api_keys")
+      .select("api_key")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const AI_PROVIDER_API_KEY = keyRow?.api_key?.trim();
+    if (!AI_PROVIDER_API_KEY) {
+      return new Response(JSON.stringify({ error: "Configure sua chave de API em Perfil > Configurações." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const systemPrompt = `Você é um especialista em fitness que extrai treinos de imagens (fotos de planilhas, papéis, prints de outros apps, fotos de tabelas de personal trainer). 
 Analise a imagem e identifique todas as fichas de treino. Se houver divisões A/B/C/D, retorne uma para cada. Se for uma ficha única, retorne uma só.
@@ -137,9 +146,9 @@ Use a ferramenta extract_workouts para retornar a estrutura. Para cada exercíci
 
 Para o nome do treino: use o que aparece na imagem ("Treino A", "Push Day", etc.) ou crie um descritivo baseado nos músculos trabalhados.`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${AI_PROVIDER_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-pro",
         messages: [

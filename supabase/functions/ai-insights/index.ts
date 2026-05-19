@@ -35,9 +35,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -54,6 +51,19 @@ Deno.serve(async (req) => {
       });
     }
     const userId = userData.user.id;
+
+    const { data: keyRow } = await supabase
+      .from("user_api_keys")
+      .select("api_key")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const AI_PROVIDER_API_KEY = keyRow?.api_key?.trim();
+    if (!AI_PROVIDER_API_KEY) {
+      return new Response(JSON.stringify({ error: "Configure sua chave de API em Perfil > Configurações." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Parse body — supports { force: true } to bypass cache
     let force = false;
@@ -223,7 +233,7 @@ Deno.serve(async (req) => {
       },
     };
 
-    // ----- Call Lovable AI with structured tool output -----
+    // ----- Call AI with structured tool output -----
     const systemPrompt = `Você é um coach de musculação e ciência do esporte de elite.
 Recebe métricas reais do usuário (em pt-BR) e gera insights ACIONÁVEIS, específicos e numéricos.
 NUNCA invente dados. Use apenas o que está nos números fornecidos.
@@ -243,10 +253,10 @@ Gere:
    - action=null para conselhos gerais (descanso, nutrição, técnica).
 4. forecast: previsão realista de evolução de volume nos próximos 30 dias (%) e qual exercício tem maior chance de novo PR (use exatamente um nome de top_prs).`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${AI_PROVIDER_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

@@ -18,7 +18,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Surface to console for Lovable + browser tooling
+    // Surface to console for browser tooling
     console.error("[ErrorBoundary]", error, info);
   }
 

@@ -3,12 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { SupportDevCard } from "@/components/SupportDevCard";
+
+const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: APP_URL,
             data: { display_name: name || email.split("@")[0] },
           },
         });
@@ -55,9 +56,11 @@ export default function Auth() {
   const handleApple = async () => {
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("apple", {
-        redirect_uri: window.location.origin,
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: { redirectTo: APP_URL },
       });
+      const result = { redirected: Boolean(data.url), error };
       if (result.redirected) return;
       if (result.error) throw result.error;
       navigate("/");
@@ -71,9 +74,11 @@ export default function Auth() {
   const handleGoogle = async () => {
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: APP_URL },
       });
+      const result = { redirected: Boolean(data.url), error };
       if (result.redirected) return;
       if (result.error) throw result.error;
       navigate("/");
