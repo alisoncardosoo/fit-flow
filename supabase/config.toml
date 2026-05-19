@@ -2,3 +2,6 @@ project_id = "ebnoiynvjpdcuomblwzv"
 
 [functions.send-push]
 verify_jwt = false
+
+[functions.sync-exercise-catalog]
+verify_jwt = false

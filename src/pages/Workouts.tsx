@@ -435,7 +435,7 @@ function WorkoutCard({
   const exCount = workout.workout_exercises?.length ?? 0;
   const sheetCount = workout.routine_sheets?.length ?? 0;
   const orphanCount = (workout.workout_exercises ?? []).filter((e) => !e.sheet_id).length;
-  const needsReprocess = !workout.archived && (sheetCount === 0 || orphanCount > 0 || exCount === 0);
+  const needsReprocess = !workout.archived && (sheetCount === 0 || orphanCount > 0);
   const estimatedMinutes = useMemo(() => {
     const sec = (workout.workout_exercises ?? []).reduce(
       (acc, e) => acc + e.target_sets * (e.target_reps * 3 + e.rest_seconds),

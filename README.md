@@ -638,6 +638,7 @@ supabase secrets set \
   SUPABASE_URL=https://<STAGING_PROJECT_REF>.supabase.co \
   SUPABASE_ANON_KEY=<STAGING_ANON_KEY> \
   SUPABASE_SERVICE_ROLE_KEY=<STAGING_SERVICE_ROLE_KEY> \
+  SYNC_CATALOG_SECRET=<STAGING_SYNC_CATALOG_SECRET> \
   VAPID_PUBLIC_KEY=<STAGING_VAPID_PUBLIC_KEY> \
   VAPID_PRIVATE_KEY=<STAGING_VAPID_PRIVATE_KEY> \
   VAPID_SUBJECT=mailto:<SEU_EMAIL>
@@ -650,6 +651,10 @@ supabase functions deploy suggest-exercises
 supabase functions deploy ai-insights
 supabase functions deploy generate-exercise-image
 supabase functions deploy send-push
+supabase functions deploy sync-exercise-catalog
+
+# executar uma vez para sincronizar catálogo de exercícios + imagens
+supabase functions invoke sync-exercise-catalog --header "x-sync-secret: <STAGING_SYNC_CATALOG_SECRET>"
 ```
 
 No Supabase Dashboard (staging):
@@ -675,6 +680,7 @@ supabase secrets set \
   SUPABASE_URL=https://<PROD_PROJECT_REF>.supabase.co \
   SUPABASE_ANON_KEY=<PROD_ANON_KEY> \
   SUPABASE_SERVICE_ROLE_KEY=<PROD_SERVICE_ROLE_KEY> \
+  SYNC_CATALOG_SECRET=<PROD_SYNC_CATALOG_SECRET> \
   VAPID_PUBLIC_KEY=<PROD_VAPID_PUBLIC_KEY> \
   VAPID_PRIVATE_KEY=<PROD_VAPID_PRIVATE_KEY> \
   VAPID_SUBJECT=mailto:<SEU_EMAIL>
@@ -687,6 +693,10 @@ supabase functions deploy suggest-exercises
 supabase functions deploy ai-insights
 supabase functions deploy generate-exercise-image
 supabase functions deploy send-push
+supabase functions deploy sync-exercise-catalog
+
+# executar uma vez para sincronizar catálogo de exercícios + imagens
+supabase functions invoke sync-exercise-catalog --header "x-sync-secret: <PROD_SYNC_CATALOG_SECRET>"
 ```
 
 No Supabase Dashboard (produção):

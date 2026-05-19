@@ -796,6 +796,11 @@ function NumField({ label, value, onChange, step = 1, suffix }: { label: string;
 function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (ex: Exercise) => void }) {
   const [list, setList] = useState<Exercise[]>([]);
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newMuscle, setNewMuscle] = useState<Exercise["muscle_group"]>("chest");
+  const [newEquipment, setNewEquipment] = useState<Exercise["equipment"]>("dumbbell");
 
   useEffect(() => {
     if (!open) return;
@@ -808,9 +813,46 @@ function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClose: () 
 
   const filtered = list.filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()));
 
+  async function createExercise() {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setCreating(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { data, error } = await supabase
+        .from("exercises")
+        .insert({
+          name: trimmed,
+          muscle_group: newMuscle,
+          equipment: newEquipment,
+          is_public: false,
+          user_id: user.id,
+        })
+        .select("id, name, muscle_group, equipment")
+        .single();
+
+      if (error || !data) throw error ?? new Error("Falha ao criar exercício");
+
+      setList((cur) => [data as Exercise, ...cur]);
+      setCreateOpen(false);
+      setNewName("");
+      toast.success("Exercício criado");
+      onPick(data as Exercise);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar exercício");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl border-border bg-card">
+    <>
+      <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+        <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl border-border bg-card">
         <SheetHeader className="text-left">
           <SheetTitle className="font-display">Adicionar exercício</SheetTitle>
         </SheetHeader>
@@ -824,23 +866,92 @@ function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClose: () 
           />
         </div>
         <div className="mt-3 -mx-6 max-h-[60vh] overflow-y-auto px-6 pb-8">
-          {filtered.map((ex) => (
-            <button
-              key={ex.id}
-              onClick={() => onPick(ex)}
-              className="flex w-full items-center justify-between rounded-xl p-3 text-left hover:bg-secondary"
-            >
-              <div>
-                <div className="font-semibold">{ex.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {ex.muscle_group} · {ex.equipment}
+          {filtered.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-secondary/30 p-4 text-center">
+              <p className="text-sm text-muted-foreground">Biblioteca vazia para este usuário.</p>
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className="mt-3 h-10 rounded-xl bg-primary font-semibold text-primary-foreground"
+              >
+                <Plus className="mr-1 h-4 w-4" /> Criar primeiro exercício
+              </Button>
+            </div>
+          ) : (
+            filtered.map((ex) => (
+              <button
+                key={ex.id}
+                onClick={() => onPick(ex)}
+                className="flex w-full items-center justify-between rounded-xl p-3 text-left hover:bg-secondary"
+              >
+                <div>
+                  <div className="font-semibold">{ex.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {ex.muscle_group} · {ex.equipment}
+                  </div>
                 </div>
-              </div>
-              <Plus className="h-4 w-4 text-primary" />
-            </button>
-          ))}
+                <Plus className="h-4 w-4 text-primary" />
+              </button>
+            ))
+          )}
         </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-md rounded-3xl border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="font-display">Novo exercício</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Nome do exercício"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="h-11 rounded-xl bg-secondary"
+            />
+            <select
+              value={newMuscle}
+              onChange={(e) => setNewMuscle(e.target.value as Exercise["muscle_group"])}
+              className="h-11 w-full rounded-xl border border-border bg-secondary px-3 text-sm"
+            >
+              <option value="chest">Peito</option>
+              <option value="back">Costas</option>
+              <option value="shoulders">Ombros</option>
+              <option value="biceps">Bíceps</option>
+              <option value="triceps">Tríceps</option>
+              <option value="forearms">Antebraço</option>
+              <option value="quads">Quadríceps</option>
+              <option value="hamstrings">Posterior</option>
+              <option value="glutes">Glúteo</option>
+              <option value="calves">Panturrilha</option>
+              <option value="core">Core</option>
+              <option value="cardio">Cardio</option>
+              <option value="full_body">Full Body</option>
+            </select>
+            <select
+              value={newEquipment}
+              onChange={(e) => setNewEquipment(e.target.value as Exercise["equipment"])}
+              className="h-11 w-full rounded-xl border border-border bg-secondary px-3 text-sm"
+            >
+              <option value="dumbbell">Halteres</option>
+              <option value="barbell">Barra</option>
+              <option value="machine">Máquina</option>
+              <option value="cable">Polia</option>
+              <option value="bodyweight">Peso corporal</option>
+              <option value="kettlebell">Kettlebell</option>
+              <option value="band">Elástico</option>
+              <option value="other">Outro</option>
+            </select>
+            <Button
+              onClick={createExercise}
+              disabled={creating || !newName.trim()}
+              className="h-11 w-full rounded-xl bg-primary font-semibold text-primary-foreground"
+            >
+              {creating ? "Criando…" : "Criar exercício"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
