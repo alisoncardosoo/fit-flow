@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const AI_PROVIDER_API_KEY = keyRow?.api_key?.trim();
     if (!AI_PROVIDER_API_KEY) {
-      return new Response(JSON.stringify({ error: "Configure sua chave de API em Perfil > Configurações." }), {
+      return new Response(JSON.stringify({ error: "Insira sua chave de inteligência artificial nas configurações." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
