@@ -280,7 +280,7 @@ export default function Execute() {
   }, [items, currentEx]);
 
   async function completeSet(setIdx: number) {
-    if (!current || !sessionId || !user) return;
+    if (!current) return;
     const itemId = current.id;
     const exerciseId = current.exercise_id;
     const restSec = current.rest_seconds;
@@ -302,6 +302,20 @@ export default function Execute() {
     if (!savedEntry) return; // Já estava marcado.
     const entry: SetEntry = savedEntry;
 
+    const hasNext = currentEx < total - 1;
+    const shouldOpenRest = !(allDoneAfter && !hasNext);
+    if (shouldOpenRest) {
+      setRestSeconds(restSec);
+      setRestOpen(true);
+    }
+
+    if ("vibrate" in navigator) navigator.vibrate(50);
+
+    if (!sessionId || !user) {
+      toast.error("Série marcada, mas não foi possível sincronizar o treino agora.");
+      return;
+    }
+
     const { error } = await supabase.from("set_logs").insert({
       session_id: sessionId,
       user_id: user.id,
@@ -321,15 +335,7 @@ export default function Execute() {
         return { ...cur, [itemId]: sets };
       });
       toast.error("Não foi possível salvar a série. Toque novamente.");
-      return;
     }
-
-    if ("vibrate" in navigator) navigator.vibrate(50);
-
-    const hasNext = currentEx < total - 1;
-    if (allDoneAfter && !hasNext) return;
-    setRestSeconds(restSec);
-    setRestOpen(true);
   }
 
   function adjustWeight(setIdx: number, delta: number) {
