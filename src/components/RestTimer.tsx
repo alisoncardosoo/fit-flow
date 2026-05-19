@@ -23,12 +23,17 @@ export function RestTimer({ open, seconds, onClose }: Props) {
   }, [open, seconds]);
 
   useEffect(() => {
-    const sw = typeof navigator !== "undefined" ? navigator.serviceWorker?.controller : null;
-    if (!sw) return;
-    if (open) {
-      sw.postMessage({ type: "schedule-rest-timer", endsAt: Date.now() + seconds * 1000 });
+    if (typeof navigator === "undefined") return;
+    const swContainer = navigator.serviceWorker;
+    if (!swContainer) return;
+    const msg = open
+      ? { type: "schedule-rest-timer", endsAt: Date.now() + seconds * 1000 }
+      : { type: "cancel-rest-timer" };
+    // controller is null on first load in Safari before the SW claims the page.
+    if (swContainer.controller) {
+      swContainer.controller.postMessage(msg);
     } else {
-      sw.postMessage({ type: "cancel-rest-timer" });
+      swContainer.ready.then((reg) => { reg.active?.postMessage(msg); }).catch(() => {});
     }
   }, [open, seconds]);
 

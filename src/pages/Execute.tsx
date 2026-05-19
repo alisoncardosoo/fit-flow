@@ -30,6 +30,14 @@ type Item = {
 
 type SetEntry = { reps: number; weight: number; done: boolean };
 
+type WipState = {
+  sessionId: string;
+  startedAt: number;
+  sheetId: string;
+  currentEx: number;
+  setsByItem: Record<string, SetEntry[]>;
+};
+
 export default function Execute() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -44,7 +52,7 @@ export default function Execute() {
   const [items, setItems] = useState<Item[]>([]);
   const [workoutName, setWorkoutName] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [startedAt] = useState(Date.now());
+  const [startedAt, setStartedAt] = useState(Date.now());
   const [currentEx, setCurrentEx] = useState(0);
   const [setsByItem, setSetsByItem] = useState<Record<string, SetEntry[]>>({});
   const [restOpen, setRestOpen] = useState(false);
@@ -121,6 +129,26 @@ export default function Execute() {
     if (!suggested) suggested = populated[0].id;
     setSuggestedSheetId(suggested);
 
+    // Restore an in-progress session if the user exited before finishing.
+    const wipKey = `fitflow_wip_${user.id}_${id}`;
+    const savedWip = localStorage.getItem(wipKey);
+    if (savedWip) {
+      try {
+        const wip = JSON.parse(savedWip) as WipState;
+        const { data: existingSession } = await supabase
+          .from("workout_sessions")
+          .select("id")
+          .eq("id", wip.sessionId)
+          .is("finished_at", null)
+          .maybeSingle();
+        if (existingSession) {
+          await resumeSession(wip, sheetList, w.name);
+          return;
+        }
+      } catch (_) {}
+      localStorage.removeItem(wipKey);
+    }
+
     // URL param override (e.g. ?sheet=...)
     const fromUrl = searchParams.get("sheet");
     const preselected = fromUrl && populated.some((s) => s.id === fromUrl) ? fromUrl : null;
@@ -132,6 +160,51 @@ export default function Execute() {
     } else {
       setPhase("picking");
     }
+  }
+
+  async function resumeSession(wip: WipState, sheetList: RoutineSheet[], wName: string) {
+    if (!id || !user) return;
+    const { data: we } = await supabase
+      .from("workout_exercises")
+      .select("*, exercises(id, name, muscle_group, image_url)")
+      .eq("workout_id", id)
+      .eq("sheet_id", wip.sheetId)
+      .order("position");
+    if (!we || we.length === 0) {
+      localStorage.removeItem(`fitflow_wip_${user.id}_${id}`);
+      toast.error("Não foi possível retomar o treino");
+      navigate("/workouts");
+      return;
+    }
+    const list = we as Item[];
+    const sheet = sheetList.find((s) => s.id === wip.sheetId) ?? null;
+    const sessionLabel = sheet ? `${wName} · Ficha ${sheet.name}` : wName;
+    const safeEx = Math.min(wip.currentEx, list.length - 1);
+    // Merge saved sets with current exercise list (handles exercises added/removed after save).
+    const mergedSets: Record<string, SetEntry[]> = {};
+    for (const it of list) {
+      mergedSets[it.id] = wip.setsByItem[it.id] ?? Array.from({ length: it.target_sets }, () => ({
+        reps: it.target_reps,
+        weight: Number(it.target_weight ?? 0),
+        done: false,
+      }));
+    }
+    setActiveSheet(sheet);
+    setItems(list);
+    setWorkoutName(wName);
+    setSessionId(wip.sessionId);
+    setStartedAt(wip.startedAt);
+    setCurrentEx(safeEx);
+    setSetsByItem(mergedSets);
+    void startActiveSession({
+      user_id: user.id,
+      session_id: wip.sessionId,
+      workout_name: sessionLabel,
+      total_exercises: list.length,
+      current_exercise_name: list[safeEx]?.exercises.name ?? "",
+    });
+    setPhase("running");
+    toast.info("Treino retomado de onde você parou 💪");
   }
 
   async function startSession(sheetId: string, sheetList: RoutineSheet[], wName: string) {
@@ -214,6 +287,8 @@ export default function Execute() {
         total_exercises: list.length,
         current_exercise_name: list[0]?.exercises.name ?? "",
       });
+      const wip: WipState = { sessionId: session.id, startedAt, sheetId, currentEx: 0, setsByItem: init };
+      localStorage.setItem(`fitflow_wip_${user.id}_${id}`, JSON.stringify(wip));
     }
     setPhase("running");
   }
@@ -290,6 +365,18 @@ export default function Execute() {
     setCardioRunning(false);
     if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
   }, [cardioElapsed, cardioRunning, current]);
+
+  // Keep localStorage in sync so progress survives unexpected exits.
+  useEffect(() => {
+    if (phase !== "running" || !sessionId || !user || !id) return;
+    const wipKey = `fitflow_wip_${user.id}_${id}`;
+    const saved = localStorage.getItem(wipKey);
+    if (!saved) return;
+    try {
+      const wip = JSON.parse(saved) as WipState;
+      localStorage.setItem(wipKey, JSON.stringify({ ...wip, currentEx, setsByItem }));
+    } catch (_) {}
+  }, [currentEx, setsByItem, phase, sessionId, user, id]);
 
   // Prefetch dos próximos 2 exercícios para troca de cards instantânea.
   useEffect(() => {
@@ -505,6 +592,7 @@ export default function Execute() {
 
   async function finish() {
     if (!sessionId || !user) return navigate("/");
+    if (id) localStorage.removeItem(`fitflow_wip_${user.id}_${id}`);
     const totalVolume = Object.values(setsByItem).flat().filter((s) => s.done).reduce((a, s) => a + s.reps * s.weight, 0);
     const duration = Math.round((Date.now() - startedAt) / 1000);
     await supabase

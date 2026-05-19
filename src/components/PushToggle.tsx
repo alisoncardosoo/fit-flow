@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, BellRing, Loader2 } from "lucide-react";
+
+function isSafariWithoutPush(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Chromium/.test(ua);
+  const isPWA =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as { standalone?: boolean }).standalone === true;
+  return isSafari && !isPWA;
+}
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
@@ -26,7 +36,25 @@ export function PushToggle() {
     })();
   }, [user]);
 
-  if (!user || status === "unsupported") return null;
+  if (!user) return null;
+  if (status === "unsupported") {
+    if (isSafariWithoutPush()) {
+      return (
+        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground ring-1 ring-border/60">
+            <BellOff className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-bold">Notificações push</p>
+            <p className="text-xs text-muted-foreground">
+              No Safari, adicione o app à tela inicial para receber notificações.
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   const enabled = status === "subscribed";
 
