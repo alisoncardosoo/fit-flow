@@ -171,15 +171,15 @@ export default function Execute() {
       const hitTargetReps = !!lastSet && lastSet.reps >= it.target_reps;
       const matchedTarget = lastWeight >= targetWeight && targetWeight > 0;
 
-      const startWeight =
+      const suggestedWeight =
         hitTargetReps && matchedTarget
           ? Math.round((lastWeight + 2.5) * 2) / 2
-          : targetWeight;
+          : null;
 
-      sugg[it.id] = startWeight;
+      if (suggestedWeight !== null) sugg[it.id] = suggestedWeight;
       init[it.id] = Array.from({ length: it.target_sets }, () => ({
         reps: it.target_reps,
-        weight: startWeight,
+        weight: targetWeight,
         done: false,
       }));
     }
@@ -364,6 +364,31 @@ export default function Execute() {
     });
   }
 
+  async function addSet() {
+    if (!current) return;
+    const itemId = current.id;
+    const prevSets = setsByItem[itemId] ?? [];
+    const lastSet = prevSets[prevSets.length - 1];
+
+    const newSet: SetEntry = {
+      reps: lastSet?.reps ?? current.target_reps,
+      weight: lastSet?.weight ?? current.target_weight,
+      done: false,
+    };
+
+    const newTargetSets = prevSets.length + 1;
+
+    setSetsByItem((cur) => ({ ...cur, [itemId]: [...(cur[itemId] ?? []), newSet] }));
+    setItems((cur) => cur.map((it) => (it.id === itemId ? { ...it, target_sets: newTargetSets } : it)));
+
+    if ("vibrate" in navigator) navigator.vibrate(30);
+
+    await supabase
+      .from("workout_exercises")
+      .update({ target_sets: newTargetSets })
+      .eq("id", itemId);
+  }
+
   function copyToRemaining(setIdx: number) {
     if (!current) return;
     const itemId = current.id;
@@ -448,7 +473,7 @@ export default function Execute() {
   }
 
   const sets = setsByItem[current.id] ?? [];
-  const wasUpgraded = suggestedWeight[current.id] > current.target_weight && current.target_weight > 0;
+  const hasSuggestion = suggestedWeight[current.id] != null && sets.some((s) => !s.done);
   const allSetsDone = sets.length > 0 && sets.every((s) => s.done);
   const hasNext = currentEx < total - 1;
 
@@ -520,10 +545,23 @@ export default function Execute() {
               <div className="text-xs font-semibold uppercase tracking-wider text-primary">{current.exercises.muscle_group}</div>
               <h2 className="mt-1 font-display text-2xl font-bold">{current.exercises.name}</h2>
 
-              {wasUpgraded && (
+              {hasSuggestion && (
                 <div className="mt-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-2 text-xs">
-                  <Sparkles className="h-3 w-3 text-primary" />
-                  <span>Sugerimos <strong>{suggestedWeight[current.id]}kg</strong> com base no seu histórico</span>
+                  <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="flex-1">Sugestão: <strong>{suggestedWeight[current.id]}kg</strong> com base no seu histórico</span>
+                  <button
+                    onClick={() => {
+                      const itemId = current.id;
+                      const w = suggestedWeight[itemId];
+                      setSetsByItem((cur) => {
+                        const s = cur[itemId] ?? [];
+                        return { ...cur, [itemId]: s.map((e) => (e.done ? e : { ...e, weight: w })) };
+                      });
+                    }}
+                    className="rounded-lg bg-primary px-2.5 py-1 font-bold text-primary-foreground"
+                  >
+                    Aplicar
+                  </button>
                 </div>
               )}
 
@@ -568,6 +606,14 @@ export default function Execute() {
                   </div>
                 ))}
               </div>
+
+              <button
+                onClick={() => void addSet()}
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-primary/40 py-2.5 text-xs font-semibold text-primary transition hover:border-primary hover:bg-primary/10 active:scale-[0.98]"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar série
+              </button>
 
               <div className="mt-5 flex justify-between text-xs text-muted-foreground">
                 <span>Pausa: {current.rest_seconds}s</span>
