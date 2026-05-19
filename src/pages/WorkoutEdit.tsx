@@ -482,7 +482,7 @@ export default function WorkoutEdit() {
       </div>
 
       {/* Bottom actions */}
-      <div className="fixed bottom-24 left-0 right-0 z-sticky mx-auto max-w-md px-5">
+      <div className="fixed bottom-dock left-0 right-0 z-sticky mx-auto max-w-md px-5">
         <div className="grid grid-cols-2 gap-3">
           <Button
             onClick={() => setPickerOpen(true)}
