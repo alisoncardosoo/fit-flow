@@ -7,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { RestTimer } from "@/components/RestTimer";
-import { InlineRestTimer } from "@/components/InlineRestTimer";
 import { ExerciseImage } from "@/components/ExerciseImage";
 import { ExerciseImagePicker } from "@/components/ExerciseImagePicker";
 import { SheetPicker } from "@/components/SheetPicker";
@@ -328,12 +327,9 @@ export default function Execute() {
     if ("vibrate" in navigator) navigator.vibrate(50);
 
     const hasNext = currentEx < total - 1;
-    if (allDoneAfter && hasNext) {
-      setRestSeconds(restSec);
-    } else if (!allDoneAfter) {
-      setRestSeconds(restSec);
-      setRestOpen(true);
-    }
+    if (allDoneAfter && !hasNext) return;
+    setRestSeconds(restSec);
+    setRestOpen(true);
   }
 
   function adjustWeight(setIdx: number, delta: number) {
@@ -450,8 +446,6 @@ export default function Execute() {
   const wasUpgraded = suggestedWeight[current.id] > current.target_weight && current.target_weight > 0;
   const allSetsDone = sets.length > 0 && sets.every((s) => s.done);
   const hasNext = currentEx < total - 1;
-  const showInlineRest = allSetsDone && hasNext;
-  const nextExerciseName = hasNext ? items[currentEx + 1]?.exercises.name : "";
 
   return (
     <div className="relative min-h-screen bg-background pb-8">
@@ -578,20 +572,6 @@ export default function Execute() {
               </div>
             </div>
           </motion.div>
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showInlineRest && (
-            <div className="mt-4">
-              <InlineRestTimer
-                key={current.id}
-                seconds={current.rest_seconds}
-                title={`Próximo: ${nextExerciseName}`}
-                onSkip={() => goNext()}
-                onComplete={() => goNext()}
-              />
-            </div>
-          )}
         </AnimatePresence>
 
         <div className="mt-5 flex items-center justify-between">
