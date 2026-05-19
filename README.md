@@ -614,7 +614,7 @@ VAPID_SUBJECT=
 - Auth Providers (Supabase Dashboard):
   - `Site URL` e `Redirect URLs` de produção.
 - Segurança:
-  - `functions.send-push.verify_jwt = true` em `supabase/config.toml`.
+  - `functions.send-push.verify_jwt = false` em `supabase/config.toml` (necessário para disparo via trigger SQL com `pg_net`).
 
 ### Runbook de Migração (Supabase)
 
