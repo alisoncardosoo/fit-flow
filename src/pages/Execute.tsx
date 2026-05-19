@@ -133,20 +133,24 @@ export default function Execute() {
     const wipKey = `fitflow_wip_${user.id}_${id}`;
     const savedWip = localStorage.getItem(wipKey);
     if (savedWip) {
-      try {
-        const wip = JSON.parse(savedWip) as WipState;
-        const { data: existingSession } = await supabase
+      let wip: WipState | null = null;
+      try { wip = JSON.parse(savedWip) as WipState; } catch (_) { localStorage.removeItem(wipKey); }
+      if (wip) {
+        const { data: existingSession, error } = await supabase
           .from("workout_sessions")
           .select("id")
           .eq("id", wip.sessionId)
+          .eq("user_id", user.id)
           .is("finished_at", null)
           .maybeSingle();
         if (existingSession) {
           await resumeSession(wip, sheetList, w.name);
           return;
         }
-      } catch (_) {}
-      localStorage.removeItem(wipKey);
+        // Only clear localStorage if the query succeeded but the session no longer exists.
+        // On network/auth errors keep it so the user can retry.
+        if (!error) localStorage.removeItem(wipKey);
+      }
     }
 
     // URL param override (e.g. ?sheet=...)
@@ -164,13 +168,19 @@ export default function Execute() {
 
   async function resumeSession(wip: WipState, sheetList: RoutineSheet[], wName: string) {
     if (!id || !user) return;
-    const { data: we } = await supabase
+    const { data: we, error: weError } = await supabase
       .from("workout_exercises")
       .select("*, exercises(id, name, muscle_group, image_url)")
       .eq("workout_id", id)
       .eq("sheet_id", wip.sheetId)
       .order("position");
-    if (!we || we.length === 0) {
+    if (weError || !we) {
+      // Network/query error — keep localStorage so the user can retry next time.
+      toast.error("Erro ao retomar treino. Tente novamente.");
+      navigate("/workouts");
+      return;
+    }
+    if (we.length === 0) {
       localStorage.removeItem(`fitflow_wip_${user.id}_${id}`);
       toast.error("Não foi possível retomar o treino");
       navigate("/workouts");
