@@ -23,6 +23,16 @@ export function RestTimer({ open, seconds, onClose }: Props) {
   }, [open, seconds]);
 
   useEffect(() => {
+    const sw = typeof navigator !== "undefined" ? navigator.serviceWorker?.controller : null;
+    if (!sw) return;
+    if (open) {
+      sw.postMessage({ type: "schedule-rest-timer", endsAt: Date.now() + seconds * 1000 });
+    } else {
+      sw.postMessage({ type: "cancel-rest-timer" });
+    }
+  }, [open, seconds]);
+
+  useEffect(() => {
     if (!open) return;
     const t = setInterval(() => {
       setRemaining((r) => {

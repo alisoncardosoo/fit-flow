@@ -128,7 +128,58 @@ function pickUrl(data) {
   }
 }
 
+// ---------- Local rest-timer scheduling ----------
+let _restTimerTimeout = null;
+
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (!data) return;
+
+  if (data.type === "schedule-rest-timer") {
+    if (_restTimerTimeout) { clearTimeout(_restTimerTimeout); _restTimerTimeout = null; }
+    const delay = Math.max(0, data.endsAt - Date.now());
+    _restTimerTimeout = setTimeout(async () => {
+      _restTimerTimeout = null;
+      try {
+        const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        if (clients.some((c) => c.focused)) return; // app in foreground — skip OS notif
+        await self.registration.showNotification("⏱ Descanso concluído!", {
+          body: "Hora de voltar ao treino 💪",
+          icon: ICON,
+          badge: BADGE,
+          tag: "rest-timer",
+          requireInteraction: true,
+          vibrate: [100, 50, 100],
+          data: { type: "rest-timer" },
+          actions: [{ action: "open", title: "Abrir treino" }],
+        });
+      } catch (_) { /* ignore */ }
+    }, delay);
+  }
+
+  if (data.type === "cancel-rest-timer") {
+    if (_restTimerTimeout) { clearTimeout(_restTimerTimeout); _restTimerTimeout = null; }
+    self.registration.getNotifications({ tag: "rest-timer" })
+      .then((ns) => ns.forEach((n) => n.close()))
+      .catch(() => {});
+  }
+});
+
 self.addEventListener("notificationclick", (event) => {
+  const notifType = event.notification.data && event.notification.data.type;
+  if (notifType === "rest-timer") {
+    event.notification.close();
+    event.waitUntil(
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+        for (const client of list) {
+          if ("focus" in client) return client.focus();
+        }
+        return self.clients.openWindow("/");
+      }),
+    );
+    return;
+  }
+
   const action = event.action;
   const target = (event.notification.data && event.notification.data.url) || "/";
 
