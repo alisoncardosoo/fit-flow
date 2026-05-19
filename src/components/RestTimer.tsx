@@ -12,6 +12,8 @@ export function RestTimer({ open, seconds, onClose }: Props) {
   const [remaining, setRemaining] = useState(seconds);
   const [total, setTotal] = useState(seconds);
   const completedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -28,7 +30,7 @@ export function RestTimer({ open, seconds, onClose }: Props) {
           if (!completedRef.current) {
             completedRef.current = true;
             if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
-            setTimeout(() => onClose(), 600);
+            setTimeout(() => onCloseRef.current(), 600);
           }
           return 0;
         }
@@ -36,7 +38,7 @@ export function RestTimer({ open, seconds, onClose }: Props) {
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [open, onClose]);
+  }, [open]);
 
   const adjust = (delta: number) => {
     setRemaining((r) => Math.max(0, r + delta));

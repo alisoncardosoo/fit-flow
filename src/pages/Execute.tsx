@@ -285,22 +285,21 @@ export default function Execute() {
     const exerciseId = current.exercise_id;
     const restSec = current.rest_seconds;
 
-    // Functional update — evita closure stale ao tocar rapidamente vários sets.
-    let savedEntry: SetEntry | null = null;
-    let allDoneAfter = false;
-    setSetsByItem((cur) => {
-      const sets = [...(cur[itemId] ?? [])];
-      const e = sets[setIdx];
-      if (!e || e.done) return cur;
-      const updated: SetEntry = { ...e, done: true };
-      savedEntry = updated;
-      sets[setIdx] = updated;
-      allDoneAfter = sets.every((s) => s.done);
-      return { ...cur, [itemId]: sets };
-    });
+    // Lê o state diretamente — evita depender de side-effects dentro do updater,
+    // que não é confiável no React 18 concurrent mode.
+    const prevSets = setsByItem[itemId] ?? [];
+    const e = prevSets[setIdx];
+    if (!e || e.done) return; // Já estava marcado.
 
-    if (!savedEntry) return; // Já estava marcado.
-    const entry: SetEntry = savedEntry;
+    const entry: SetEntry = { ...e, done: true };
+    const newSets = prevSets.map((s, i) => (i === setIdx ? entry : s));
+    const allDoneAfter = newSets.every((s) => s.done);
+
+    setSetsByItem((cur) => {
+      const sets = cur[itemId] ?? [];
+      if (sets[setIdx]?.done) return cur; // guard contra toque duplo rápido
+      return { ...cur, [itemId]: newSets };
+    });
 
     const hasNext = currentEx < total - 1;
     const shouldOpenRest = !(allDoneAfter && !hasNext);
