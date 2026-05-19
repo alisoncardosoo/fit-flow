@@ -143,13 +143,14 @@ export default function Execute() {
           .eq("user_id", user.id)
           .is("finished_at", null)
           .maybeSingle();
-        if (existingSession) {
+        if (existingSession || error) {
+          // Session confirmed active, OR query failed (network error) — either way
+          // trust localStorage and try to restore. resumeSession handles its own errors.
           await resumeSession(wip, sheetList, w.name);
           return;
         }
-        // Only clear localStorage if the query succeeded but the session no longer exists.
-        // On network/auth errors keep it so the user can retry.
-        if (!error) localStorage.removeItem(wipKey);
+        // Query succeeded and returned nothing: session is finished/deleted → start fresh.
+        localStorage.removeItem(wipKey);
       }
     }
 
@@ -297,8 +298,10 @@ export default function Execute() {
         total_exercises: list.length,
         current_exercise_name: list[0]?.exercises.name ?? "",
       });
-      const wip: WipState = { sessionId: session.id, startedAt, sheetId, currentEx: 0, setsByItem: init };
-      localStorage.setItem(`fitflow_wip_${user.id}_${id}`, JSON.stringify(wip));
+      try {
+        const wip: WipState = { sessionId: session.id, startedAt, sheetId, currentEx: 0, setsByItem: init };
+        localStorage.setItem(`fitflow_wip_${user.id}_${id}`, JSON.stringify(wip));
+      } catch (_) { /* storage unavailable (private mode / quota) — progress won't persist */ }
     }
     setPhase("running");
   }
