@@ -11,6 +11,7 @@ describe("cn", () => {
   });
 
   it("ignora valores falsy", () => {
-    expect(cn("text-sm", false && "font-bold", undefined, null)).toBe("text-sm");
+    const maybeBold = false;
+    expect(cn("text-sm", maybeBold ? "font-bold" : undefined, undefined, null)).toBe("text-sm");
   });
 });

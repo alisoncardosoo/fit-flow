@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
     const data = await response.json();
     const text: string = data?.choices?.[0]?.message?.content ?? "";
-    const suggestions = text.split("\n").map((l) => l.replace(/^\d+[\.\)]\s*/, "").trim()).filter(Boolean).slice(0, 5);
+    const suggestions = text.split("\n").map((l) => l.replace(/^\d+[.)]\s*/, "").trim()).filter(Boolean).slice(0, 5);
 
     return new Response(JSON.stringify({ suggestions }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

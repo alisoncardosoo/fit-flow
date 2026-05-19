@@ -112,9 +112,9 @@ export function ExerciseImagePicker({
       onChanged(image_url);
       toast.success("Imagem gerada com IA!");
       onOpenChange(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      const msg = e?.message || "Erro ao gerar imagem";
+      const msg = e instanceof Error ? e.message : "Erro ao gerar imagem";
       if (msg.includes("429")) toast.error("Muitas requisições. Tente em alguns minutos.");
       else if (msg.includes("402")) toast.error("Créditos de IA esgotados.");
       else toast.error(msg);
