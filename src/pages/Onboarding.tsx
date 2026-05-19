@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Target, Flame, TrendingUp, Dumbbell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ const levels: { id: Level; label: string; desc: string }[] = [
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState<Goal | null>(null);
@@ -47,8 +49,38 @@ export default function Onboarding() {
       toast.error("Erro ao salvar perfil");
       return;
     }
+
+    // Keep dashboard cache in sync to avoid redirecting back to onboarding
+    // with stale `onboarded = false` data right after completion.
+    queryClient.setQueryData(["dashboard", user.id], (prev: unknown) => {
+      if (!prev || typeof prev !== "object") return prev;
+
+      const current = prev as {
+        profile?: {
+          onboarded?: boolean;
+          goal?: Goal | null;
+          level?: Level | null;
+          weekly_target?: number | null;
+        } | null;
+      };
+
+      return {
+        ...current,
+        profile: current.profile
+          ? {
+              ...current.profile,
+              onboarded: true,
+              goal,
+              level,
+              weekly_target: weeklyTarget,
+            }
+          : current.profile,
+      };
+    });
+    await queryClient.invalidateQueries({ queryKey: ["dashboard", user.id] });
+
     toast.success("Pronto! Vamos treinar 🔥");
-    navigate("/");
+    navigate("/", { replace: true });
   };
 
   return (
