@@ -46,7 +46,6 @@ export function RestTimer({ open, seconds, onClose }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-2xl"
-          onClick={onClose}
         >
           {/* Animated bg gradient */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -61,7 +60,6 @@ export function RestTimer({ open, seconds, onClose }: Props) {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
             className="glass-strong relative mx-6 w-full max-w-sm rounded-[2.5rem] p-8 shadow-elevated"
           >
             <div className="text-center">
