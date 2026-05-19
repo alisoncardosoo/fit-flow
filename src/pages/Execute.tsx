@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSwipeable } from "react-swipeable";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { RestTimer } from "@/components/RestTimer";
+import { CardioSetCard } from "@/components/CardioSetCard";
 import { ExerciseImage } from "@/components/ExerciseImage";
 import { ExerciseImagePicker } from "@/components/ExerciseImagePicker";
 import { SheetPicker } from "@/components/SheetPicker";
@@ -51,6 +52,9 @@ export default function Execute() {
   const [suggestedWeight, setSuggestedWeight] = useState<Record<string, number>>({});
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [cardioElapsed, setCardioElapsed] = useState(0);
+  const [cardioRunning, setCardioRunning] = useState(false);
+  const cardioTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Tick a cada 1s para o cronômetro do treino. Recalcula a partir de `startedAt`
   // (não acumula) — assim segue correto mesmo após o tab voltar do background.
@@ -158,6 +162,15 @@ export default function Execute() {
     const sugg: Record<string, number> = {};
     for (const it of list) {
       const targetWeight = Number(it.target_weight ?? 0);
+      init[it.id] = Array.from({ length: it.target_sets }, () => ({
+        reps: it.target_reps,
+        weight: targetWeight,
+        done: false,
+      }));
+
+      // Skip progression suggestion for cardio exercises.
+      if (it.exercises.muscle_group === "cardio") continue;
+
       const { data: lastSet } = await supabase
         .from("set_logs")
         .select("weight, reps")
@@ -177,11 +190,6 @@ export default function Execute() {
           : null;
 
       if (suggestedWeight !== null) sugg[it.id] = suggestedWeight;
-      init[it.id] = Array.from({ length: it.target_sets }, () => ({
-        reps: it.target_reps,
-        weight: targetWeight,
-        done: false,
-      }));
     }
     setSetsByItem(init);
     setSuggestedWeight(sugg);
@@ -255,6 +263,33 @@ export default function Execute() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reset cardio timer whenever the active exercise changes.
+  useEffect(() => {
+    setCardioElapsed(0);
+    setCardioRunning(false);
+  }, [currentEx]);
+
+  // Manage the cardio count-up interval.
+  useEffect(() => {
+    if (cardioTimerRef.current) {
+      clearInterval(cardioTimerRef.current);
+      cardioTimerRef.current = null;
+    }
+    if (!cardioRunning) return;
+    cardioTimerRef.current = setInterval(() => setCardioElapsed((e) => e + 1), 1000);
+    return () => {
+      if (cardioTimerRef.current) clearInterval(cardioTimerRef.current);
+    };
+  }, [cardioRunning]);
+
+  // Auto-stop and vibrate when target duration is reached.
+  useEffect(() => {
+    const targetSec = current?.exercises.muscle_group === "cardio" ? (current.target_reps * 60) : 0;
+    if (!cardioRunning || targetSec <= 0 || cardioElapsed < targetSec) return;
+    setCardioRunning(false);
+    if ("vibrate" in navigator) navigator.vibrate([100, 50, 100]);
+  }, [cardioElapsed, cardioRunning, current]);
 
   // Prefetch dos próximos 2 exercícios para troca de cards instantânea.
   useEffect(() => {
@@ -334,6 +369,60 @@ export default function Execute() {
         return { ...cur, [itemId]: sets };
       });
       toast.error("Não foi possível salvar a série. Toque novamente.");
+    }
+  }
+
+  async function completeCardioSet() {
+    if (!current) return;
+    const itemId = current.id;
+    const exerciseId = current.exercise_id;
+    const restSec = current.rest_seconds;
+
+    const prevSets = setsByItem[itemId] ?? [];
+    const setIdx = prevSets.findIndex((s) => !s.done);
+    if (setIdx < 0) return;
+
+    const elapsed = cardioElapsed;
+    setCardioElapsed(0);
+    setCardioRunning(false);
+
+    const entry: SetEntry = { ...prevSets[setIdx], reps: elapsed, done: true };
+    const newSets = prevSets.map((s, i) => (i === setIdx ? entry : s));
+    const allDoneAfter = newSets.every((s) => s.done);
+
+    setSetsByItem((cur) => ({ ...cur, [itemId]: newSets }));
+
+    const hasNextEx = currentEx < total - 1;
+    const shouldOpenRest = !(allDoneAfter && !hasNextEx);
+    if (shouldOpenRest) {
+      setRestSeconds(restSec);
+      setRestOpen(true);
+    }
+
+    if ("vibrate" in navigator) navigator.vibrate(50);
+
+    if (!sessionId || !user) {
+      toast.error("Intervalo marcado, mas não foi possível sincronizar o treino agora.");
+      return;
+    }
+
+    const { error } = await supabase.from("set_logs").insert({
+      session_id: sessionId,
+      user_id: user.id,
+      exercise_id: exerciseId,
+      set_number: setIdx + 1,
+      reps: elapsed,
+      weight: current.target_weight,
+      rest_seconds: restSec,
+    });
+
+    if (error) {
+      setSetsByItem((cur) => {
+        const sets = [...(cur[itemId] ?? [])];
+        if (sets[setIdx]) sets[setIdx] = { ...sets[setIdx], done: false };
+        return { ...cur, [itemId]: sets };
+      });
+      toast.error("Não foi possível salvar o intervalo. Toque novamente.");
     }
   }
 
@@ -473,7 +562,9 @@ export default function Execute() {
   }
 
   const sets = setsByItem[current.id] ?? [];
-  const hasSuggestion = suggestedWeight[current.id] != null && sets.some((s) => !s.done);
+  const isCardio = current.exercises.muscle_group === "cardio";
+  const currentCardioInterval = isCardio ? sets.findIndex((s) => !s.done) : -1;
+  const hasSuggestion = !isCardio && suggestedWeight[current.id] != null && sets.some((s) => !s.done);
   const allSetsDone = sets.length > 0 && sets.every((s) => s.done);
   const hasNext = currentEx < total - 1;
 
@@ -565,55 +656,92 @@ export default function Execute() {
                 </div>
               )}
 
-              <div className="mt-5 space-y-2">
-                {sets.map((s, i) => (
-                  <div key={i} className={`flex items-center gap-2 rounded-2xl p-3 transition ${s.done ? "bg-primary/15 border border-primary/30" : "bg-secondary border border-transparent"}`}>
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${s.done ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>
-                      {i + 1}
+              {isCardio ? (
+                <>
+                  {sets.some((s) => s.done) && (
+                    <div className="mt-5 space-y-1.5">
+                      {sets.map((s, i) =>
+                        s.done ? (
+                          <div key={i} className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/15 px-3 py-2 text-xs font-semibold">
+                            <Check className="h-3.5 w-3.5 text-primary" />
+                            Intervalo {i + 1} — {String(Math.floor(s.reps / 60)).padStart(2, "0")}:{String(s.reps % 60).padStart(2, "0")}
+                          </div>
+                        ) : null,
+                      )}
                     </div>
-                    <div className="flex flex-1 items-center gap-1">
-                      <button onClick={() => adjustWeight(i, -2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
-                      <div className="flex-1 text-center">
-                        <div className="text-base font-bold">{s.weight}</div>
-                        <div className="text-[9px] text-muted-foreground">kg</div>
+                  )}
+                  {currentCardioInterval >= 0 && (
+                    <CardioSetCard
+                      intervalIndex={currentCardioInterval}
+                      totalIntervals={sets.length}
+                      targetDurationSec={current.target_reps * 60}
+                      targetIntensity={current.target_weight}
+                      elapsed={cardioElapsed}
+                      running={cardioRunning}
+                      onToggle={() => setCardioRunning((r) => !r)}
+                      onComplete={() => void completeCardioSet()}
+                    />
+                  )}
+                  <button
+                    onClick={() => void addSet()}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-primary/40 py-2.5 text-xs font-semibold text-primary transition hover:border-primary hover:bg-primary/10 active:scale-[0.98]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Adicionar intervalo
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="mt-5 space-y-2">
+                    {sets.map((s, i) => (
+                      <div key={i} className={`flex items-center gap-2 rounded-2xl p-3 transition ${s.done ? "bg-primary/15 border border-primary/30" : "bg-secondary border border-transparent"}`}>
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${s.done ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground"}`}>
+                          {i + 1}
+                        </div>
+                        <div className="flex flex-1 items-center gap-1">
+                          <button onClick={() => adjustWeight(i, -2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
+                          <div className="flex-1 text-center">
+                            <div className="text-base font-bold">{s.weight}</div>
+                            <div className="text-[9px] text-muted-foreground">kg</div>
+                          </div>
+                          <button onClick={() => adjustWeight(i, 2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
+                        </div>
+                        <div className="flex flex-1 items-center gap-1">
+                          <button onClick={() => adjustReps(i, -1)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
+                          <div className="flex-1 text-center">
+                            <div className="text-base font-bold">{s.reps}</div>
+                            <div className="text-[9px] text-muted-foreground">reps</div>
+                          </div>
+                          <button onClick={() => adjustReps(i, 1)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
+                        </div>
+                        <button
+                          onClick={() => copyToRemaining(i)}
+                          disabled={i >= sets.length - 1 || sets.slice(i + 1).every((x) => x.done)}
+                          className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition hover:bg-primary/15 hover:text-primary disabled:opacity-30"
+                          title="Copiar reps e carga para as séries seguintes"
+                          aria-label="Copiar para as séries seguintes"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => completeSet(i)}
+                          disabled={s.done}
+                          className={`flex h-10 w-10 items-center justify-center rounded-full transition ${s.done ? "bg-primary text-primary-foreground" : "bg-primary/20 text-primary hover:bg-primary hover:text-primary-foreground"}`}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button onClick={() => adjustWeight(i, 2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
-                    </div>
-                    <div className="flex flex-1 items-center gap-1">
-                      <button onClick={() => adjustReps(i, -1)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
-                      <div className="flex-1 text-center">
-                        <div className="text-base font-bold">{s.reps}</div>
-                        <div className="text-[9px] text-muted-foreground">reps</div>
-                      </div>
-                      <button onClick={() => adjustReps(i, 1)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
-                    </div>
-                    <button
-                      onClick={() => copyToRemaining(i)}
-                      disabled={i >= sets.length - 1 || sets.slice(i + 1).every((x) => x.done)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-muted-foreground transition hover:bg-primary/15 hover:text-primary disabled:opacity-30"
-                      title="Copiar reps e carga para as séries seguintes"
-                      aria-label="Copiar para as séries seguintes"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => completeSet(i)}
-                      disabled={s.done}
-                      className={`flex h-10 w-10 items-center justify-center rounded-full transition ${s.done ? "bg-primary text-primary-foreground" : "bg-primary/20 text-primary hover:bg-primary hover:text-primary-foreground"}`}
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => void addSet()}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-primary/40 py-2.5 text-xs font-semibold text-primary transition hover:border-primary hover:bg-primary/10 active:scale-[0.98]"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Adicionar série
-              </button>
+                  <button
+                    onClick={() => void addSet()}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-primary/40 py-2.5 text-xs font-semibold text-primary transition hover:border-primary hover:bg-primary/10 active:scale-[0.98]"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Adicionar série
+                  </button>
+                </>
+              )}
 
               <div className="mt-5 flex justify-between text-xs text-muted-foreground">
                 <span>Pausa: {current.rest_seconds}s</span>

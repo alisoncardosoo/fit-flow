@@ -767,10 +767,17 @@ function SortableItem({
       </div>
 
       <div className="mt-3 grid grid-cols-4 gap-2">
-        <NumField label="Séries" value={item.target_sets} onChange={(v) => onUpdate("target_sets", v)} />
-        <NumField label="Reps" value={item.target_reps} onChange={(v) => onUpdate("target_reps", v)} />
-        <NumField label="Carga" value={Number(item.target_weight ?? 0)} onChange={(v) => onUpdate("target_weight", v)} step={2.5} suffix="kg" />
-        <NumField label="Pausa" value={item.rest_seconds} onChange={(v) => onUpdate("rest_seconds", v)} step={15} suffix="s" />
+        {(() => {
+          const isCardio = item.exercises.muscle_group === "cardio";
+          return (
+            <>
+              <NumField label={isCardio ? "Intervalos" : "Séries"} value={item.target_sets} onChange={(v) => onUpdate("target_sets", v)} />
+              <NumField label={isCardio ? "Dur. (min)" : "Reps"} value={item.target_reps} onChange={(v) => onUpdate("target_reps", v)} />
+              <NumField label={isCardio ? "Vel./Resist." : "Carga"} value={Number(item.target_weight ?? 0)} onChange={(v) => onUpdate("target_weight", v)} step={isCardio ? 0.5 : 2.5} suffix={isCardio ? undefined : "kg"} />
+              <NumField label="Pausa" value={item.rest_seconds} onChange={(v) => onUpdate("rest_seconds", v)} step={15} suffix="s" />
+            </>
+          );
+        })()}
       </div>
     </div>
   );
