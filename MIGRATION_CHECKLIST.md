@@ -7,7 +7,7 @@ Legenda:
 
 ## 0) Pre-flight
 
-- [ ] Branch principal atualizada e sem conflitos (bloqueado: sem rede para validar remoto)
+- [x] Branch principal atualizada e sem conflitos
 - [x] Build local ok (`npm run build`)
 - [x] Testes locais ok (`npm test`)
 - [x] `.env` fora do Git e `.env.example` atualizado
@@ -15,26 +15,26 @@ Legenda:
 
 ## 1) Staging - Supabase
 
-- [ ] Instalar Supabase CLI (bloqueado: CLI ausente nesta maquina)
-- [ ] `supabase login` (bloqueado)
-- [ ] `supabase link --project-ref <STAGING_PROJECT_REF>` (bloqueado)
-- [ ] `supabase db push` (bloqueado)
-- [ ] Configurar secrets (bloqueado):
-  - [ ] `SUPABASE_URL`
-  - [ ] `SUPABASE_ANON_KEY`
-  - [ ] `SUPABASE_SERVICE_ROLE_KEY`
-  - [ ] `VAPID_PUBLIC_KEY`
-  - [ ] `VAPID_PRIVATE_KEY`
-  - [ ] `VAPID_SUBJECT`
-- [ ] Deploy das functions (bloqueado):
-  - [ ] `motivation`
-  - [ ] `generate-workout`
-  - [ ] `import-workout-from-image`
-  - [ ] `reprocess-workout`
-  - [ ] `suggest-exercises`
-  - [ ] `ai-insights`
-  - [ ] `generate-exercise-image`
-  - [ ] `send-push`
+- [x] Instalar Supabase CLI
+- [x] `supabase login`
+- [x] `supabase link --project-ref <STAGING_PROJECT_REF>`
+- [x] `supabase db push`
+- [x] Configurar secrets:
+  - [x] `SUPABASE_URL` (auto no Supabase Functions)
+  - [x] `SUPABASE_ANON_KEY` (auto no Supabase Functions)
+  - [x] `SUPABASE_SERVICE_ROLE_KEY` (auto no Supabase Functions)
+  - [ ] `VAPID_PUBLIC_KEY` (nao usado no momento)
+  - [ ] `VAPID_PRIVATE_KEY` (nao usado no momento)
+  - [ ] `VAPID_SUBJECT` (nao usado no momento)
+- [x] Deploy das functions:
+  - [x] `motivation`
+  - [x] `generate-workout`
+  - [x] `import-workout-from-image`
+  - [x] `reprocess-workout`
+  - [x] `suggest-exercises`
+  - [x] `ai-insights`
+  - [x] `generate-exercise-image`
+  - [x] `send-push`
 
 ## 2) Staging - Auth e Frontend
 
@@ -91,4 +91,4 @@ Legenda:
 - [ ] Smoke test completo em producao (auth, treino, IA, upload, push) (bloqueado)
 - [ ] Monitorar erros por 24h (auth/functions/storage)
 - [x] Confirmar que nao ha dependencias do Lovable restantes
-- [ ] Tag de release criada
+- [x] Tag de release criada
