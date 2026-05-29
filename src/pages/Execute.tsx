@@ -16,8 +16,9 @@ import { checkAndAwardBadges } from "@/lib/badges";
 import { startActiveSession, updateActiveSession, endActiveSession } from "@/lib/social";
 import { listSheets, type RoutineSheet } from "@/lib/sheets";
 import { prefetchExerciseImage, getUserOverride } from "@/lib/exerciseImageCache";
+import { saveDraft, loadDraft, clearDraft } from "@/lib/executionDraft";
 
-type Item = {
+export type Item = {
   id: string;
   exercise_id: string;
   sheet_id: string | null;
@@ -28,7 +29,7 @@ type Item = {
   exercises: { id: string; name: string; muscle_group: string; image_url: string | null };
 };
 
-type SetEntry = { reps: number; weight: number; done: boolean };
+export type SetEntry = { reps: number; weight: number; done: boolean };
 
 export default function Execute() {
   const { id } = useParams<{ id: string }>();
@@ -44,7 +45,7 @@ export default function Execute() {
   const [items, setItems] = useState<Item[]>([]);
   const [workoutName, setWorkoutName] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [startedAt] = useState(Date.now());
+  const [startedAt, setStartedAt] = useState(Date.now());
   const [currentEx, setCurrentEx] = useState(0);
   const [setsByItem, setSetsByItem] = useState<Record<string, SetEntry[]>>({});
   const [suggestedWeight, setSuggestedWeight] = useState<Record<string, number>>({});
@@ -68,6 +69,28 @@ export default function Execute() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [phase, startedAt]);
+
+  // Persiste o estado do treino em andamento (debounce ~500ms) para retomada
+  // automática se o app for fechado/recarregado. Cobre marcações, ajustes de
+  // carga/reps, séries adicionadas e navegação — tudo passa por estes states.
+  useEffect(() => {
+    if (phase !== "running" || !sessionId || !user || !id) return;
+    const handle = window.setTimeout(() => {
+      saveDraft(user.id, {
+        workoutId: id,
+        sheetId: activeSheet?.id ?? null,
+        sessionId,
+        startedAt,
+        currentEx,
+        workoutName,
+        activeSheetId: activeSheet?.id ?? null,
+        items,
+        setsByItem,
+        savedAt: Date.now(),
+      });
+    }, 500);
+    return () => window.clearTimeout(handle);
+  }, [phase, sessionId, user, id, currentEx, setsByItem, items, activeSheet, startedAt, workoutName]);
 
   function formatDuration(totalSec: number) {
     const h = Math.floor(totalSec / 3600);
@@ -108,6 +131,44 @@ export default function Execute() {
       toast.error("Treino vazio — adicione exercícios primeiro");
       navigate(`/workouts/${id}`);
       return;
+    }
+
+    // Retomada: se existe um treino em andamento salvo neste aparelho e a sessão
+    // ainda não foi finalizada no banco, restauramos exatamente onde paramos —
+    // sem criar uma sessão duplicada via startSession().
+    const draft = loadDraft(user.id, id);
+    if (draft) {
+      const { data: session } = await supabase
+        .from("workout_sessions")
+        .select("id, started_at, finished_at")
+        .eq("id", draft.sessionId)
+        .maybeSingle();
+      if (session && !session.finished_at) {
+        setItems(draft.items);
+        setSetsByItem(draft.setsByItem);
+        setCurrentEx(draft.currentEx);
+        setSessionId(draft.sessionId);
+        setWorkoutName(draft.workoutName);
+        setActiveSheet(sheetList.find((s) => s.id === draft.activeSheetId) ?? null);
+        // `started_at` do banco é autoritativo (imune a clock skew). Fallback no draft.
+        setStartedAt(
+          session.started_at ? new Date(session.started_at).getTime() : draft.startedAt,
+        );
+        // Re-estabelece a presença (upsert idempotente em user_id) caso o unmount
+        // anterior tenha apagado a linha de active_sessions.
+        const resumeItem = draft.items[draft.currentEx] ?? draft.items[0];
+        void startActiveSession({
+          user_id: user.id,
+          session_id: draft.sessionId,
+          workout_name: draft.workoutName,
+          total_exercises: draft.items.length,
+          current_exercise_name: resumeItem?.exercises.name ?? "",
+        });
+        setPhase("running");
+        return;
+      }
+      // Sessão sumiu ou já foi finalizada (ex.: concluída em outro lugar).
+      clearDraft(user.id, id);
     }
 
     // Suggest next: based on workouts.last_sheet_id → use NEXT in order
@@ -497,6 +558,7 @@ export default function Execute() {
         total_volume: totalVolume,
       })
       .eq("id", sessionId);
+    if (id) clearDraft(user.id, id);
     void endActiveSession(user.id);
     toast.success("Treino concluído! 💪", {
       description: `Duração: ${formatDuration(duration)} · Volume: ${Math.round(totalVolume)}kg`,
