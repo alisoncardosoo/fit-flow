@@ -484,6 +484,21 @@ export default function Execute() {
     });
   }
 
+  function setWeight(setIdx: number, value: number) {
+    if (!current) return;
+    const itemId = current.id;
+    setSetsByItem((cur) => {
+      const sets = [...(cur[itemId] ?? [])];
+      const s = sets[setIdx];
+      if (!s || s.done) return cur;
+      sets[setIdx] = {
+        ...s,
+        weight: Math.max(0, Math.round(value * 2) / 2),
+      };
+      return { ...cur, [itemId]: sets };
+    });
+  }
+
   function adjustReps(setIdx: number, delta: number) {
     if (!current) return;
     const itemId = current.id;
@@ -743,12 +758,23 @@ export default function Execute() {
                           {i + 1}
                         </div>
                         <div className="flex flex-1 items-center gap-1">
-                          <button onClick={() => adjustWeight(i, -2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
+                          <button onClick={() => adjustWeight(i, -0.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
                           <div className="flex-1 text-center">
-                            <div className="text-base font-bold">{s.weight}</div>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              step={0.5}
+                              min={0}
+                              value={s.weight}
+                              disabled={s.done}
+                              onChange={(e) => setWeight(i, e.target.value === "" ? 0 : Number(e.target.value))}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full bg-transparent text-center text-base font-bold outline-none disabled:opacity-100 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              aria-label="Carga em kg"
+                            />
                             <div className="text-[9px] text-muted-foreground">kg</div>
                           </div>
-                          <button onClick={() => adjustWeight(i, 2.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
+                          <button onClick={() => adjustWeight(i, 0.5)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Plus className="h-3 w-3" /></button>
                         </div>
                         <div className="flex flex-1 items-center gap-1">
                           <button onClick={() => adjustReps(i, -1)} disabled={s.done} className="rounded-lg p-1 text-muted-foreground disabled:opacity-30"><Minus className="h-3 w-3" /></button>
