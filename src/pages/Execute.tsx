@@ -6,7 +6,7 @@ import { X, Check, ChevronLeft, ChevronRight, SkipForward, Minus, Plus, Sparkles
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { RestTimer } from "@/components/RestTimer";
+import { InlineRestTimer } from "@/components/InlineRestTimer";
 import { CardioSetCard } from "@/components/CardioSetCard";
 import { ExerciseImage } from "@/components/ExerciseImage";
 import { ExerciseImagePicker } from "@/components/ExerciseImagePicker";
@@ -47,8 +47,6 @@ export default function Execute() {
   const [startedAt] = useState(Date.now());
   const [currentEx, setCurrentEx] = useState(0);
   const [setsByItem, setSetsByItem] = useState<Record<string, SetEntry[]>>({});
-  const [restOpen, setRestOpen] = useState(false);
-  const [restSeconds, setRestSeconds] = useState(60);
   const [suggestedWeight, setSuggestedWeight] = useState<Record<string, number>>({});
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -328,20 +326,12 @@ export default function Execute() {
 
     const entry: SetEntry = { ...e, done: true };
     const newSets = prevSets.map((s, i) => (i === setIdx ? entry : s));
-    const allDoneAfter = newSets.every((s) => s.done);
 
     setSetsByItem((cur) => {
       const sets = cur[itemId] ?? [];
       if (sets[setIdx]?.done) return cur; // guard contra toque duplo rápido
       return { ...cur, [itemId]: newSets };
     });
-
-    const hasNext = currentEx < total - 1;
-    const shouldOpenRest = !(allDoneAfter && !hasNext);
-    if (shouldOpenRest) {
-      setRestSeconds(restSec);
-      setRestOpen(true);
-    }
 
     if ("vibrate" in navigator) navigator.vibrate(50);
 
@@ -388,16 +378,8 @@ export default function Execute() {
 
     const entry: SetEntry = { ...prevSets[setIdx], reps: elapsed, done: true };
     const newSets = prevSets.map((s, i) => (i === setIdx ? entry : s));
-    const allDoneAfter = newSets.every((s) => s.done);
 
     setSetsByItem((cur) => ({ ...cur, [itemId]: newSets }));
-
-    const hasNextEx = currentEx < total - 1;
-    const shouldOpenRest = !(allDoneAfter && !hasNextEx);
-    if (shouldOpenRest) {
-      setRestSeconds(restSec);
-      setRestOpen(true);
-    }
 
     if ("vibrate" in navigator) navigator.vibrate(50);
 
@@ -569,7 +551,7 @@ export default function Execute() {
   const hasNext = currentEx < total - 1;
 
   return (
-    <div className="relative min-h-screen bg-background pb-8">
+    <div className="relative min-h-screen bg-background pb-44">
       <div className="sticky top-0 z-30 bg-background/80 px-5 pb-3 backdrop-blur safe-top">
         <div className="flex items-center justify-between">
           <button onClick={() => navigate(-1)} className="rounded-xl bg-secondary p-2"><X className="h-5 w-5" /></button>
@@ -770,7 +752,11 @@ export default function Execute() {
         <p className="mt-4 text-center text-xs text-muted-foreground">Deslize ← → para trocar de exercício</p>
       </div>
 
-      <RestTimer open={restOpen} seconds={restSeconds} onClose={() => setRestOpen(false)} />
+      <div className="fixed inset-x-0 bottom-0 z-dock px-5 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2">
+        <div className="mx-auto max-w-md">
+          <InlineRestTimer seconds={current.rest_seconds} />
+        </div>
+      </div>
 
       {current && (
         <ExerciseImagePicker
