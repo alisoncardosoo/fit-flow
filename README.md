@@ -1,838 +1,350 @@
+<div align="center">
+
+<img src="public/icon-512.png" width="120" alt="FitFlow logo" onerror="this.style.display='none'"/>
+
 # FitFlow
 
-FitFlow é um app fitness premium, mobile-first e orientado a consistência. A proposta do produto é transformar treino em um fluxo simples, inteligente e social: organizar fichas, executar sessões com menos fricção, acompanhar evolução real e usar IA para acelerar planejamento, análise e motivação.
+### Seu fluxo. Sua evolução.
 
-O projeto combina uma interface em React + Vite com backend em Supabase, recursos de IA via Edge Functions e uma experiência pensada para parecer app nativo, inclusive com PWA, notificações push, navegação em dock e foco em uso recorrente no celular.
+**Treinos inteligentes que viciam** — um app fitness premium, mobile-first e orientado a consistência, com IA, gamificação e camada social real.
 
-## Visão do Produto
+<br/>
 
-### Objetivo principal
+[![Status](https://img.shields.io/badge/status-MVP%20ativo-22c55e?style=for-the-badge)](#-status-do-projeto)
+[![PWA](https://img.shields.io/badge/PWA-ready-a3e635?style=for-the-badge&logo=pwa&logoColor=black)](#-pwa)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](#-licença)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)](#-contribuição)
 
-Ajuda pessoas a:
+<br/>
 
-- criar, importar e editar treinos com rapidez;
-- executar séries com fluidez durante a sessão;
-- visualizar progresso com dados claros;
-- manter consistência por meio de metas, streaks e conquistas;
-- adicionar contexto social ao treino com amigos, ranking, reações e desafios;
-- usar IA para gerar treinos, analisar evolução e sugerir próximos passos.
+![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3-38BDF8?style=flat-square&logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?style=flat-square&logo=supabase&logoColor=white)
+![React Query](https://img.shields.io/badge/TanStack_Query-5-FF4154?style=flat-square&logo=reactquery&logoColor=white)
 
-### Posicionamento da marca
+<br/>
 
-No código, a marca principal aparece como `FitFlow`, com mensagens como:
+![last commit](https://img.shields.io/github/last-commit/alisoncardosoo/fit-flow?style=flat-square&color=22c55e)
+![repo size](https://img.shields.io/github/repo-size/alisoncardosoo/fit-flow?style=flat-square&color=a3e635)
+![stars](https://img.shields.io/github/stars/alisoncardosoo/fit-flow?style=flat-square&color=facc15)
+![issues](https://img.shields.io/github/issues/alisoncardosoo/fit-flow?style=flat-square)
 
-- `FitFlow.`
-- `Seu fluxo. Sua evolução.`
-- `Treinos inteligentes que viciam`
+</div>
 
-Visualmente, a identidade do app é:
+<br/>
 
-- dark mode por padrão;
-- acento neon lime como cor assinatura;
-- look premium com superfícies glass, gradientes e brilho;
-- tipografia de display forte para sensação de produto aspiracional.
+---
 
-### Observação importante sobre naming
+## 📚 Índice
 
-Atualmente, a interface, metadados SEO e PWA estão alinhados com a marca `FitFlow`.
+- [Sobre o Projeto](#-sobre-o-projeto)
+- [Status do Projeto](#-status-do-projeto)
+- [Funcionalidades](#-funcionalidades)
+- [Demonstração Visual](#-demonstração-visual)
+- [Acesso ao Projeto](#-acesso-ao-projeto)
+- [Tecnologias](#-tecnologias)
+- [Arquitetura](#-arquitetura)
+- [Instalação](#-instalação)
+- [Roadmap](#-roadmap)
+- [Contribuição](#-contribuição)
+- [Autor](#-autor)
+- [Licença](#-licença)
 
-## O Que o App Entrega
+<br/>
 
-### 1. Autenticação e entrada no produto
+---
 
-O app já possui:
+## 🎯 Sobre o Projeto
 
-- cadastro com email e senha;
-- login com email e senha;
-- login social via Supabase OAuth;
-- fluxo de recuperação e redefinição de senha;
-- onboarding em 3 etapas;
-- configuração inicial de username público.
+**FitFlow** transforma treino em um fluxo simples, inteligente e social. A proposta do produto é reduzir a fricção entre _"abrir o app"_ e _"terminar o treino"_, ao mesmo tempo em que entrega progresso mensurável, motivação assistida por IA e uma camada social competitiva.
 
-Durante o onboarding, o usuário informa:
+> **O problema:** apps de treino costumam ser planilhas glorificadas — frias, manuais e fáceis de abandonar.
+>
+> **A solução:** o FitFlow combina execução fluida, analytics inteligente, gamificação e social em uma experiência com cara de app nativo, pensada para uso recorrente no celular.
 
-- objetivo fitness;
-- nível de treino;
-- meta semanal.
+### Por que existe
 
-Depois disso, o perfil passa a alimentar recomendações, analytics e componentes de gamificação.
+- 📲 **Mobile-first real** — dock flutuante, navegação por swipe, safe areas e PWA instalável.
+- 🤖 **IA aplicada de verdade** — gera treinos, importa fichas por foto, analisa evolução e motiva.
+- 🔥 **Consistência como métrica central** — streaks, metas, medalhas e desafios entre amigos.
+- 🏆 **Camada social competitiva** — ranking semanal, reações, comparações e desafios.
 
-### 2. Dashboard inteligente
+### Público-alvo
 
-A tela inicial entrega uma visão resumida da jornada do usuário:
+Pessoas que treinam e querem **organização, evolução visível e motivação contínua** — do iniciante que importa a ficha da academia ao praticante avançado que acompanha PRs e volume acumulado.
 
-- saudação contextual;
-- streak atual;
-- próximo treino;
-- volume semanal;
-- contagem de treinos na semana;
-- último treino realizado;
-- meta mensal;
-- amigos treinando ao vivo;
-- ranking social;
-- mensagem motivacional gerada por IA.
+### Identidade visual
 
-É o centro da experiência diária do produto.
+- 🌑 Dark mode por padrão com undertone esverdeado
+- 🟢 Acento **neon lime** como cor assinatura
+- 💎 Superfícies _glass_, gradientes premium e tipografia de display forte
 
-### 3. Biblioteca de treinos
+<br/>
 
-O módulo de treinos permite:
+---
 
-- listar treinos ativos, arquivados e mais usados;
-- criar treino manualmente;
-- duplicar treino;
-- arquivar e restaurar;
-- excluir treino;
-- reprocessar treino quando necessário;
-- iniciar execução rapidamente;
-- sincronizar a lista em tempo real com React Query + Supabase.
+## 🚦 Status do Projeto
 
-Cada treino pode conter:
+<div align="center">
 
-- uma ou mais fichas;
-- lista ordenável de exercícios;
-- séries, repetições, descanso e carga alvo;
-- cor e descrição.
+🟢 **MVP ATIVO** — espinha dorsal completa de um produto fitness moderno, pronto para evoluir rumo a beta fechado e lançamento PWA.
 
-### 4. Editor de treino
+</div>
 
-O projeto possui estrutura para edição detalhada do treino:
+O projeto já cobre autenticação, onboarding, treino, biblioteca, analytics, metas, medalhas, social, desafios, compartilhamento, notificações, PWA e IA.
 
-- renomear treino;
-- ajustar cor;
-- adicionar exercícios;
-- editar séries, repetições, carga e descanso;
-- reordenar exercícios;
-- trabalhar com fichas (`routine_sheets`);
-- persistir defaults do usuário para novos exercícios.
-
-### 5. Execução do treino
+<br/>
 
-A execução é um dos pontos mais fortes do produto. O fluxo inclui:
+---
 
-- seleção automática ou manual de ficha;
-- histórico da última ficha usada para sugerir próxima rotação;
-- navegação por swipe entre exercícios;
-- marcação de séries concluídas;
-- sugestão de carga com base no último log;
-- timer de descanso;
-- pré-carregamento de imagens dos próximos exercícios;
-- criação de sessão ativa e atualização em tempo real;
-- encerramento da sessão com persistência de volume e duração;
-- checagem automática de medalhas conquistadas.
+## 🔨 Funcionalidades
 
-Em termos de UX, a proposta é reduzir o atrito entre "abrir o app" e "terminar o treino".
+### 🔐 Autenticação & Onboarding
+- Cadastro e login por email/senha + login social (Supabase OAuth)
+- Recuperação e redefinição de senha
+- Onboarding em 3 etapas (objetivo, nível, meta semanal) e `@username` público
 
-### 6. Biblioteca de exercícios
+### 📊 Dashboard Inteligente
+- Saudação contextual, streak atual e próximo treino
+- Volume semanal, contagem de treinos e meta mensal
+- Amigos treinando ao vivo, ranking social e mensagem motivacional por IA
 
-O app mantém uma biblioteca pesquisável e filtrável de exercícios com:
+### 🏋️ Treinos & Execução
+- Biblioteca de treinos: criar, duplicar, arquivar, restaurar e reprocessar
+- Fichas (`A`, `B`, `C`…), exercícios ordenáveis, séries, reps, descanso e carga
+- Execução com swipe, sugestão de carga pelo último log, timer de descanso e sessão em tempo real
 
-- busca textual;
-- filtro por grupo muscular;
-- filtro por equipamento;
-- nível de dificuldade;
-- descrição e dicas;
-- imagem do exercício;
-- cadastro de exercício customizado;
-- sugestões com IA por grupo muscular.
+### 📷 Importação por Imagem (IA)
+- Importe a foto de uma planilha ou print de outro app
+- IA multimodal identifica múltiplas fichas e cria os treinos automaticamente
 
-Há também geração de imagem por IA para exercícios do usuário, com upload para Storage.
+### 📈 Analytics & Inteligência
+- Performance score, evolução de carga, recordes, distribuição por grupo muscular
+- Card de IA com resumo, insights, recomendações e forecast de 30 dias com ações de um toque
 
-### 7. Importação de treino por imagem
+### 🎯 Metas & Gamificação
+- Metas de frequência e corporais com histórico de medições
+- Catálogo de medalhas: marcos de treino, streaks, PRs e volume acumulado
 
-Um diferencial do produto já implementado:
+### 🤝 Social & Desafios
+- Código/link de convite, amizades, ranking semanal e reações
+- Desafios (`most_sessions`, `most_volume`, `most_frequency`) com leaderboard
+- Comparação direta entre você e um amigo em múltiplas janelas de tempo
 
-- importar foto de planilha, ficha da academia ou print de outro app;
-- compressão da imagem no cliente;
-- análise por IA multimodal;
-- identificação de múltiplas fichas (`A`, `B`, `C`, etc.);
-- criação automática dos treinos;
-- criação de exercícios ausentes na biblioteca quando necessário;
-- abertura rápida do treino importado para ajuste fino.
-
-Esse fluxo reduz drasticamente o trabalho manual de migração para o app.
+### 📤 Compartilhamento & Notificações
+- Cards de evolução `1080x1920` para stories (download + Web Share API)
+- Central de notificações + Web Push com VAPID e Service Worker
 
-### 8. Analytics e inteligência de evolução
+<br/>
 
-O módulo `Analytics` oferece uma leitura rica do desempenho:
+---
 
-- score de performance;
-- streak;
-- frequência semanal em relação à meta;
-- evolução de carga;
-- comparação de períodos;
-- recordes pessoais;
-- distribuição por grupos musculares;
-- duração das sessões;
-- mapas e gráficos com Recharts;
-- alertas automáticos;
-- insights textuais calculados localmente.
+## 🖼️ Demonstração Visual
 
-Além disso, existe um card de análise com IA que gera:
+<div align="center">
 
-- resumo do momento do usuário;
-- insights positivos e alertas;
-- recomendações práticas;
-- previsão para os próximos 30 dias;
-- ações aplicáveis com um toque, como:
-  - ajustar meta semanal;
-  - gerar um treino novo com IA.
+> 📌 _Adicione aqui screenshots e GIFs do app (dashboard, execução de treino, analytics e cards de evolução)._
 
-### 9. Metas e progresso
+<!--
+<img src="docs/preview-dashboard.png" width="260" alt="Dashboard"/>
+<img src="docs/preview-execucao.png" width="260" alt="Execução do treino"/>
+<img src="docs/preview-analytics.png" width="260" alt="Analytics"/>
+-->
 
-O sistema de metas cobre dois grandes cenários:
+</div>
 
-- metas de performance/frequência;
-- metas corporais e customizadas.
+<br/>
 
-O usuário pode:
+---
 
-- criar novas metas;
-- acompanhar progresso;
-- registrar avanço manual;
-- ver histórico de medições corporais;
-- editar e excluir metas;
-- acompanhar metas conquistadas;
-- receber celebração visual ao bater um objetivo.
+## 🌐 Acesso ao Projeto
 
-O app também mantém metas mensais, usadas tanto no dashboard quanto em conquistas.
+| Recurso | Link |
+|--------|------|
+| 🚀 Deploy (Vercel) | `https://seu-dominio.com` _(configurar)_ |
+| 📦 Repositório | [github.com/alisoncardosoo/fit-flow](https://github.com/alisoncardosoo/fit-flow) |
+| 🧪 Ambiente local | `http://localhost:8080` |
 
-### 10. Conquistas e gamificação
+<br/>
 
-Existe um catálogo de medalhas já modelado no projeto, com categorias como:
+---
 
-- marcos de treino;
-- consistência;
-- metas mensais;
-- recordes de força;
-- volume acumulado.
+## 🧰 Tecnologias
 
-Exemplos implementados:
-
-- primeiro treino;
-- 10, 50, 100 e 250 treinos;
-- streak de 3, 7 e 30 dias;
-- metas mensais concluídas;
-- PRs de supino, agachamento, terra e desenvolvimento;
-- 10t e 50t de volume acumulado.
-
-O usuário consegue:
-
-- ver o que já desbloqueou;
-- entender o progresso de medalhas ainda bloqueadas;
-- ajustar meta mensal diretamente nessa área.
-
-### 11. Histórico
-
-O histórico registra sessões finalizadas com:
-
-- nome do treino;
-- data;
-- duração;
-- volume total;
-- autoria da sessão;
-- reações sociais.
-
-Como a política social já está integrada, o histórico pode mostrar também sessões de amigos autorizados pela RLS.
-
-### 12. Social
-
-O módulo social está bastante completo e inclui:
-
-- código pessoal de convite;
-- link de convite;
-- compartilhamento nativo;
-- atalho para WhatsApp;
-- envio e recebimento de convites;
-- aceite e recusa de amizade;
-- remoção de amizade;
-- ranking semanal entre amigos;
-- visualização de amigos treinando ao vivo;
-- reações em sessões;
-- comparação entre você e um amigo em múltiplas janelas de tempo.
-
-Esse conjunto posiciona o FitFlow como um fitness app com camada social real, não apenas um tracker individual.
-
-### 13. Desafios
-
-O sistema de desafios permite:
-
-- criar desafios;
-- convidar amigos;
-- entrar ou sair de desafios;
-- acompanhar leaderboard;
-- ver desafios ativos e encerrados.
-
-Tipos de desafio já suportados:
-
-- `most_sessions` — quem fez mais treinos;
-- `most_volume` — maior volume acumulado;
-- `most_frequency` — maior frequência em dias.
-
-Períodos suportados:
-
-- semanal;
-- mensal;
-- customizado.
-
-### 14. Compartilhamento de evolução
-
-O app gera cards visuais para stories com:
-
-- streak;
-- treinos na semana;
-- meta semanal;
-- volume total;
-- total de sessões;
-- top PRs;
-- período selecionado.
-
-O card é exportado em:
-
-- `1080x1920`
-
-e pode ser:
-
-- baixado;
-- compartilhado via Web Share API quando suportado.
-
-### 15. Notificações e push
-
-O projeto já possui estrutura para notificações internas e Web Push.
-
-Tipos de notificação identificados no código:
-
-- pedido de amizade;
-- amizade aceita;
-- treino do amigo;
-- reação recebida;
-- convite para desafio;
-- ultrapassagem em desafio;
-- vitória em desafio.
-
-O usuário pode:
-
-- visualizar central de notificações;
-- marcar como lidas;
-- limpar tudo;
-- ativar ou desativar push.
-
-O envio Web Push é implementado no backend com VAPID e fan-out para múltiplas subscriptions por usuário.
-
-## Fluxo Principal do Usuário
-
-Em alto nível, a jornada ideal pensada pelo produto é:
-
-1. criar conta ou entrar;
-2. concluir onboarding;
-3. definir `@username`;
-4. montar ou importar treinos;
-5. executar sessões com mínimo atrito;
-6. acompanhar progresso e insights;
-7. manter consistência por metas, streaks e medalhas;
-8. adicionar amigos e competir em desafios;
-9. compartilhar evolução fora do app.
-
-## Stack do Projeto
+<div align="center">
 
 ### Frontend
+![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-38BDF8?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![React Query](https://img.shields.io/badge/React_Query-FF4154?style=for-the-badge&logo=reactquery&logoColor=white)
+![Framer Motion](https://img.shields.io/badge/Framer_Motion-0055FF?style=for-the-badge&logo=framer&logoColor=white)
 
-- React 18
-- TypeScript
-- Vite
-- React Router DOM
-- TanStack React Query
-- Tailwind CSS
-- shadcn/ui + Radix UI
-- Framer Motion
-- Recharts
-- Sonner
+### Backend & Dados
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Edge Functions](https://img.shields.io/badge/Edge_Functions-000000?style=for-the-badge&logo=deno&logoColor=white)
 
-### Backend e dados
+</div>
 
-- Supabase Auth
-- Supabase Postgres
-- Supabase Storage
-- Supabase Realtime
-- Supabase Edge Functions
+- **UI:** shadcn/ui + Radix UI, Recharts, Sonner, dnd-kit, Embla
+- **Backend:** Supabase Auth, Postgres + RLS, Storage, Realtime e Edge Functions (IA)
+- **Extras:** Web Push (VAPID + Service Worker), HTML-to-Image, Zod, React Hook Form
 
-### Recursos complementares
+<br/>
 
-- Supabase OAuth para provedores sociais
-- Web Push com Service Worker
-- HTML-to-Image para exportação de cards
+---
 
-## Arquitetura em Alto Nível
+## 🏗️ Arquitetura
 
-### Frontend
+```
+📦 fit-flow
+ ┣ 📂 src
+ ┃ ┣ 📂 pages         → telas do produto (dashboard, treinos, analytics…)
+ ┃ ┣ 📂 components     → blocos reutilizáveis de UI e produto
+ ┃ ┣ 📂 services       → acesso a dados e agregações por domínio
+ ┃ ┣ 📂 hooks          → auth, metas, realtime e utilidades
+ ┃ ┣ 📂 lib            → cálculos, integrações e helpers
+ ┃ ┗ 📂 integrations   → cliente Supabase e tipos
+ ┣ 📂 supabase
+ ┃ ┣ 📂 functions      → Edge Functions (IA, push, import, insights)
+ ┃ ┗ 📂 migrations     → schema versionado + RLS
+ ┗ 📂 public           → PWA manifest, ícones e service worker
+```
 
-O frontend está organizado principalmente em:
+**Edge Functions:** `motivation` · `generate-workout` · `import-workout-from-image` · `reprocess-workout` · `suggest-exercises` · `ai-insights` · `generate-exercise-image` · `send-push`
 
-- `src/pages` — telas do produto;
-- `src/components` — blocos reutilizáveis de UI e produto;
-- `src/services` — acesso a dados e agregações por domínio;
-- `src/lib` — regras auxiliares, integrações, cálculos e helpers;
-- `src/hooks` — hooks de autenticação, metas, realtime e utilidades.
+**Entidades centrais:** `profiles`, `workouts`, `routine_sheets`, `workout_exercises`, `workout_sessions`, `set_logs`, `exercises`, `goals`, `achievements`, `friendships`, `challenges`, `notifications`.
 
-### Backend
+<br/>
 
-O backend é fortemente orientado ao Supabase:
+---
 
-- autenticação e sessão no Supabase Auth;
-- persistência em Postgres;
-- regras de acesso via RLS;
-- lógica assíncrona e IA nas Edge Functions;
-- assets gerados no Storage;
-- atualizações em tempo real com canais do Supabase.
-
-### Entidades centrais do domínio
-
-Pelo código, as principais entidades do sistema são:
-
-- `profiles`
-- `workouts`
-- `routine_sheets`
-- `workout_exercises`
-- `workout_sessions`
-- `set_logs`
-- `exercises`
-- `goals`
-- `body_measurements`
-- `monthly_goals`
-- `achievements`
-- `friend_codes`
-- `friendships`
-- `active_sessions`
-- `reactions`
-- `notifications`
-- `challenges`
-- `challenge_participants`
-- `push_subscriptions`
-- `ai_insights`
-- `exercise_image_map`
-
-Também existem RPCs importantes, como:
-
-- `get_user_streak`
-- `get_monthly_progress`
-- `get_exercise_pr`
-- `get_public_profiles`
-- `get_friend_ranking`
-- `get_friend_comparison`
-- `is_username_available`
-
-## Edge Functions
-
-O projeto já possui as seguintes funções em `supabase/functions`:
-
-### `motivation`
-
-Gera uma mensagem curta de motivação com base em:
-
-- streak;
-- treinos da semana;
-- meta semanal;
-- nome do atleta.
-
-### `generate-workout`
-
-Cria treino com IA a partir de:
-
-- foco;
-- duração;
-- equipamento disponível.
-
-### `import-workout-from-image`
-
-Extrai fichas de treino de uma imagem e cria:
-
-- treinos;
-- ficha padrão;
-- exercícios novos, se necessário;
-- vínculos com a biblioteca existente.
-
-### `reprocess-workout`
-
-Recupera treinos problemáticos:
-
-- cria ficha padrão se faltar;
-- religa exercícios órfãos;
-- pode regenerar exercícios com IA se o treino estiver vazio.
-
-### `suggest-exercises`
-
-Sugere novos exercícios para um grupo muscular com apoio de IA.
-
-### `ai-insights`
-
-Analisa os últimos dados do usuário e retorna:
-
-- resumo;
-- insights;
-- recomendações;
-- forecast;
-- cache temporário para reduzir custo.
-
-### `generate-exercise-image`
-
-Gera imagem de exercício por IA e salva no bucket de imagens.
-
-### `send-push`
-
-Lê notificações pendentes e envia Web Push para subscriptions do usuário.
-
-## Estrutura de Navegação
-
-As rotas principais da aplicação são:
-
-- `/auth`
-- `/forgot-password`
-- `/reset-password`
-- `/onboarding`
-- `/username`
-- `/`
-- `/workouts`
-- `/workouts/:id`
-- `/execute/:id`
-- `/library`
-- `/analytics`
-- `/history`
-- `/profile`
-- `/achievements`
-- `/goals`
-- `/share`
-- `/social`
-- `/social/add`
-- `/social/invite/:code`
-- `/social/compare/:friendId`
-- `/challenges`
-- `/challenges/new`
-- `/challenges/:id`
-
-## Design System e Experiência
-
-O design system implementado em `src/index.css` revela a intenção do produto:
-
-- base escura com undertone esverdeado;
-- cor primária lime neon;
-- superfícies premium com gradiente;
-- efeitos glass;
-- sombras fortes;
-- componentes com raio alto;
-- safe areas e espaçamento pensados para uso mobile;
-- dock inferior flutuante;
-- animações suaves com Framer Motion.
-
-Isso não é apenas estética: a interface foi modelada para parecer um app nativo de treino, não um painel web genérico.
-
-## PWA
-
-O projeto já possui recursos de Progressive Web App:
-
-- `manifest.webmanifest`;
-- ícones `192x192` e `512x512`;
-- `apple-touch-icon`;
-- orientação vertical;
-- `display: standalone`.
-
-Também existe um service worker específico para push:
-
-- `public/sw-push.js`
-
-## Como Rodar Localmente
+## ⚙️ Instalação
 
 ### Pré-requisitos
+- Node.js 18+
+- npm (ou bun)
+- Projeto Supabase configurado
 
-- Node.js 18+ recomendado
-- npm
-- projeto Supabase configurado
+### 1. Clonar o repositório
+```bash
+git clone https://github.com/alisoncardosoo/fit-flow.git
+```
 
-### Instalação
+### 2. Entrar na pasta
+```bash
+cd fit-flow
+```
 
+### 3. Instalar dependências
 ```bash
 npm install
 ```
 
-### Ambiente
-
-Crie as variáveis necessárias para o frontend:
-
-```env
-VITE_SUPABASE_URL=
-VITE_SUPABASE_PUBLISHABLE_KEY=
-VITE_APP_URL=
-VITE_AUTH_REDIRECT_URL=
-```
-
-Além disso, as Edge Functions dependem de segredos no Supabase:
+### 4. Configurar variáveis de ambiente
+Crie um arquivo `.env` na raiz (baseado em `.env.example`):
 
 ```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-VAPID_PUBLIC_KEY=
-VAPID_PRIVATE_KEY=
-VAPID_SUBJECT=
+VITE_SUPABASE_URL="https://seu-project-id.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="sua-anon-publishable-key"
+VITE_APP_URL="http://localhost:8080"
+VITE_AUTH_REDIRECT_URL="http://localhost:8080/reset-password"
 ```
 
-`AI_PROVIDER_API_KEY` global é opcional. O app prioriza a chave individual de cada usuário (configurada em `Perfil > Configurações`).
+> As Edge Functions dependem de _secrets_ no Supabase (`SUPABASE_SERVICE_ROLE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`). Consulte o `MIGRATION_CHECKLIST.md` para o runbook completo de staging/produção.
 
-### Checklist de Secrets por Ambiente
-
-#### Dev (local)
-
-- Frontend (`.env`):
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_PUBLISHABLE_KEY`
-  - `VITE_APP_URL=http://localhost:8080`
-  - `VITE_AUTH_REDIRECT_URL=http://localhost:8080/reset-password`
-- Supabase Functions (secrets no projeto Supabase):
-  - `SUPABASE_URL`
-  - `SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `VAPID_PUBLIC_KEY`
-  - `VAPID_PRIVATE_KEY`
-  - `VAPID_SUBJECT`
-
-#### Staging
-
-- Frontend:
-  - `VITE_APP_URL=https://staging.seu-dominio.com`
-  - `VITE_AUTH_REDIRECT_URL=https://staging.seu-dominio.com/reset-password`
-- Supabase Functions:
-  - Mesmo conjunto de secrets do `dev`, mas com chaves do projeto de staging.
-- Auth Providers (Supabase Dashboard):
-  - `Site URL` e `Redirect URLs` apontando para staging.
-
-#### Produção
-
-- Frontend:
-  - `VITE_APP_URL=https://seu-dominio.com`
-  - `VITE_AUTH_REDIRECT_URL=https://seu-dominio.com/reset-password`
-- Supabase Functions:
-  - Mesmo conjunto de secrets do `staging`, com chaves de produção.
-- Auth Providers (Supabase Dashboard):
-  - `Site URL` e `Redirect URLs` de produção.
-- Segurança:
-  - `functions.send-push.verify_jwt = false` em `supabase/config.toml` (necessário para disparo via trigger SQL com `pg_net`).
-
-### Runbook de Migração (Supabase)
-
-Use este passo a passo quando for publicar em `staging` e `produção`.
-
-#### 1) Instalar CLI e autenticar
-
-```bash
-brew install supabase/tap/supabase
-supabase login
-```
-
-#### 2) Staging
-
-```bash
-# dentro da raiz do projeto
-supabase link --project-ref <STAGING_PROJECT_REF>
-supabase db push
-
-supabase secrets set \
-  SUPABASE_URL=https://<STAGING_PROJECT_REF>.supabase.co \
-  SUPABASE_ANON_KEY=<STAGING_ANON_KEY> \
-  SUPABASE_SERVICE_ROLE_KEY=<STAGING_SERVICE_ROLE_KEY> \
-  SYNC_CATALOG_SECRET=<STAGING_SYNC_CATALOG_SECRET> \
-  VAPID_PUBLIC_KEY=<STAGING_VAPID_PUBLIC_KEY> \
-  VAPID_PRIVATE_KEY=<STAGING_VAPID_PRIVATE_KEY> \
-  VAPID_SUBJECT=mailto:<SEU_EMAIL>
-
-supabase functions deploy motivation
-supabase functions deploy generate-workout
-supabase functions deploy import-workout-from-image
-supabase functions deploy reprocess-workout
-supabase functions deploy suggest-exercises
-supabase functions deploy ai-insights
-supabase functions deploy generate-exercise-image
-supabase functions deploy send-push
-supabase functions deploy sync-exercise-catalog
-
-# executar uma vez para sincronizar catálogo de exercícios + imagens
-supabase functions invoke sync-exercise-catalog --header "x-sync-secret: <STAGING_SYNC_CATALOG_SECRET>"
-```
-
-No Supabase Dashboard (staging):
-- `Authentication > URL Configuration > Site URL`: `https://staging.seu-dominio.com`
-- `Redirect URLs`:
-  - `https://staging.seu-dominio.com`
-  - `https://staging.seu-dominio.com/reset-password`
-
-No deploy frontend (staging):
-- `VITE_SUPABASE_URL=https://<STAGING_PROJECT_REF>.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY=<STAGING_PUBLISHABLE_KEY>`
-- `VITE_APP_URL=https://staging.seu-dominio.com`
-- `VITE_AUTH_REDIRECT_URL=https://staging.seu-dominio.com/reset-password`
-
-#### 3) Produção
-
-```bash
-# dentro da raiz do projeto
-supabase link --project-ref <PROD_PROJECT_REF>
-supabase db push
-
-supabase secrets set \
-  SUPABASE_URL=https://<PROD_PROJECT_REF>.supabase.co \
-  SUPABASE_ANON_KEY=<PROD_ANON_KEY> \
-  SUPABASE_SERVICE_ROLE_KEY=<PROD_SERVICE_ROLE_KEY> \
-  SYNC_CATALOG_SECRET=<PROD_SYNC_CATALOG_SECRET> \
-  VAPID_PUBLIC_KEY=<PROD_VAPID_PUBLIC_KEY> \
-  VAPID_PRIVATE_KEY=<PROD_VAPID_PRIVATE_KEY> \
-  VAPID_SUBJECT=mailto:<SEU_EMAIL>
-
-supabase functions deploy motivation
-supabase functions deploy generate-workout
-supabase functions deploy import-workout-from-image
-supabase functions deploy reprocess-workout
-supabase functions deploy suggest-exercises
-supabase functions deploy ai-insights
-supabase functions deploy generate-exercise-image
-supabase functions deploy send-push
-supabase functions deploy sync-exercise-catalog
-
-# executar uma vez para sincronizar catálogo de exercícios + imagens
-supabase functions invoke sync-exercise-catalog --header "x-sync-secret: <PROD_SYNC_CATALOG_SECRET>"
-```
-
-No Supabase Dashboard (produção):
-- `Authentication > URL Configuration > Site URL`: `https://seu-dominio.com`
-- `Redirect URLs`:
-  - `https://seu-dominio.com`
-  - `https://seu-dominio.com/reset-password`
-
-No deploy frontend (produção):
-- `VITE_SUPABASE_URL=https://<PROD_PROJECT_REF>.supabase.co`
-- `VITE_SUPABASE_PUBLISHABLE_KEY=<PROD_PUBLISHABLE_KEY>`
-- `VITE_APP_URL=https://seu-dominio.com`
-- `VITE_AUTH_REDIRECT_URL=https://seu-dominio.com/reset-password`
-
-#### 4) Verificação pós-deploy (go-live)
-
-1. Criar conta por email/senha.
-2. Login/logout.
-3. Reset de senha via email.
-4. Login social (Google/Apple).
-5. Criar treino.
-6. Importar treino por imagem.
-7. Gerar treino com IA.
-8. Upload de imagem de exercício.
-9. Receber notificação push.
-10. Rodar `npm run build` no branch final.
-
-### Desenvolvimento
-
+### 5. Rodar o projeto
 ```bash
 npm run dev
 ```
 
-O Vite sobe por padrão em:
+O Vite sobe em **`http://localhost:8080`** 🚀
 
-- `http://localhost:8080`
-
-### Build de produção
-
+### Scripts disponíveis
 ```bash
-npm run build
+npm run dev          # ambiente de desenvolvimento
+npm run build        # build de produção
+npm run preview      # preview do build
+npm run lint         # análise estática
+npm test             # testes (Vitest)
+npm run test:coverage # cobertura de testes
 ```
 
-### Preview local
+<br/>
 
-```bash
-npm run preview
+---
+
+## 🗺️ Roadmap
+
+- [x] Autenticação, onboarding e perfil
+- [x] Treinos, execução e biblioteca de exercícios
+- [x] Importação de treino por imagem (IA)
+- [x] Analytics, metas e medalhas
+- [x] Social, desafios e compartilhamento
+- [x] Notificações Web Push + PWA
+- [ ] App mobile nativo
+- [ ] Expansão de features premium
+- [ ] Personalização avançada com IA
+
+<br/>
+
+---
+
+## 🤝 Contribuição
+
+Contribuições são muito bem-vindas! Para colaborar:
+
+1. Faça um **fork** do projeto
+2. Crie uma branch: `git checkout -b feature/minha-feature`
+3. Commit suas mudanças: `git commit -m "feat: minha feature"`
+4. Push para a branch: `git push origin feature/minha-feature`
+5. Abra um **Pull Request**
+
+Antes de enviar, rode `npm run lint` e `npm test` para manter a qualidade do código. Issues e sugestões também são bem-vindas.
+
+<br/>
+
+---
+
+## 👤 Autor
+
+<div align="center">
+
+<img src="https://github.com/alisoncardosoo.png" width="100" style="border-radius:50%" alt="Alison Cardoso"/>
+
+**Alison Cardoso**
+
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/alisoncardosoo)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/)
+
+</div>
+
+<br/>
+
+---
+
+## 📄 Licença
+
+Este projeto está licenciado sob a **Licença MIT** — sinta-se livre para usar, modificar e distribuir.
+
+```
+MIT License — © 2026 Alison Cardoso
 ```
 
-### Testes
+<br/>
 
-```bash
-npm test
-```
+---
 
-## Supabase
+<div align="center">
 
-O repositório contém:
+### ⚡ FitFlow — Seu fluxo. Sua evolução.
 
-- `supabase/config.toml`
-- `supabase/migrations`
-- `supabase/functions`
+Feito com 💚 e muito treino.
 
-Isso indica que o projeto foi preparado para versionar:
+⭐ **Se este projeto te inspirou, deixe uma estrela!**
 
-- schema;
-- regras de dados;
-- funções server-side.
-
-Para rodar o ambiente completo, o fluxo esperado é usar a CLI do Supabase para:
-
-- conectar o projeto;
-- aplicar migrations;
-- publicar Edge Functions;
-- configurar secrets.
-
-## Qualidade e Estado Atual
-
-### Pontos fortes já presentes
-
-- produto com escopo real, não apenas boilerplate;
-- UI consistente e bem direcionada;
-- integração sólida entre frontend e backend;
-- camada de IA aplicada a casos úteis;
-- domínio fitness bem modelado;
-- recursos sociais acima da média para um MVP.
-
-### Pontos de atenção
-
-- o README original estava vazio e agora passa a documentar o projeto;
-- o branding principal está padronizado como `FitFlow`;
-- o arquivo de testes atual tem apenas um teste de exemplo;
-- por depender de Supabase, IA e push, parte do produto exige configuração externa para funcionar por completo.
-
-## Scripts Disponíveis
-
-```bash
-npm run dev
-npm run build
-npm run build:dev
-npm run lint
-npm run preview
-npm run test
-npm run test:watch
-```
-
-## Resumo Executivo
-
-FitFlow é uma plataforma fitness mobile-first com forte foco em:
-
-- consistência;
-- execução fluida;
-- progresso mensurável;
-- motivação assistida por IA;
-- camada social competitiva;
-- estética premium.
-
-Hoje o projeto já cobre praticamente toda a espinha dorsal de um produto fitness moderno:
-
-- autenticação;
-- onboarding;
-- treino;
-- biblioteca;
-- analytics;
-- metas;
-- medalhas;
-- social;
-- desafios;
-- compartilhamento;
-- notificações;
-- PWA;
-- IA.
-
-Se a intenção for evoluir o produto, este repositório já tem base suficiente para continuar em direção a:
-
-- beta fechado;
-- lançamento mobile web/PWA;
-- expansão de features premium;
-- maturação de analytics e personalização.
+</div>
