@@ -76,15 +76,36 @@ já trata isso (`src/lib/auth.ts` escolhe o redirect certo por plataforma e
    - `com.fitflow.app://login-callback` (signup/confirmação de email e OAuth)
    - `com.fitflow.app://reset-password` (redefinição de senha)
 
-**Login social:** quando quiser adicionar botões de Google/Apple/etc, use o
-helper já pronto:
+**Login social (Google e outros):** use o helper pronto:
 ```ts
 import { signInWithProvider } from "@/lib/auth";
-// <button onClick={() => signInWithProvider("apple")}>Entrar com Apple</button>
+// <button onClick={() => signInWithProvider("google")}>Entrar com Google</button>
 ```
 Ele usa o fluxo de redirect na web e, no app, abre o provedor no navegador do
-sistema (`@capacitor/browser`) e volta pelo deep link automaticamente. Lembre de
-habilitar o provider em **Authentication → Providers** no Supabase.
+sistema (`@capacitor/browser`) e volta pelo deep link. Habilite o provider em
+**Authentication → Providers** no Supabase (com as credenciais OAuth do provedor).
+
+### Sign in with Apple (nativo) — já implementado
+
+A tela `Auth.tsx` já tem o botão **Entrar com Apple**. No app iOS ele usa o
+botão nativo (Face ID/Touch ID) via `@capacitor-community/apple-sign-in` e troca
+o `identityToken` por sessão no Supabase (`signInWithIdToken`, com nonce). Na web
+cai no fluxo OAuth. Falta só a configuração (feita por você):
+
+1. **Apple Developer:**
+   - No **App ID** `com.fitflow.app`, habilite a capability **Sign in with Apple**.
+   - Crie um **Services ID** (será o `client_id` do provider).
+   - Em **Keys**, crie uma **Sign in with Apple key (.p8)** → anote **Key ID** e **Team ID**.
+     > ⚠️ Esta `.p8` é **diferente** da `.p8` do APNs (push). São duas chaves distintas.
+2. **Xcode:** target **App** → **Signing & Capabilities** → **+ Capability** →
+   **Sign in with Apple**.
+3. **Supabase** (**Authentication → Providers → Apple**): habilite e informe o
+   Services ID + o segredo gerado a partir da `.p8`/Key ID/Team ID. Adicione o
+   bundle id `com.fitflow.app` nos client IDs autorizados (necessário para o
+   `signInWithIdToken` nativo).
+
+> 📌 **App Store (guideline 4.8):** se o app oferecer outros logins sociais
+> (ex.: Google), o Sign in with Apple passa a ser **obrigatório**.
 
 ### 4. Ícones e splash
 Use [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets):
