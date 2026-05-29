@@ -1,0 +1,374 @@
+# Instincts generated from https://github.com/alisoncardosoo/fit-flow
+# Generated: 2026-05-29T12:55:00.630Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: fit-flow-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/alisoncardosoo/fit-flow
+---
+
+# Fit Flow Commit Length
+
+## Action
+
+Write moderate-length commit messages (~77 characters)
+
+## Evidence
+
+- Average commit message length: 77 chars
+- Based on 1 commits
+
+---
+id: fit-flow-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/alisoncardosoo/fit-flow
+---
+
+# Fit Flow Naming Files
+
+## Action
+
+Use PascalCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: PascalCase
+
+---
+id: fit-flow-import-alias
+trigger: "when importing modules"
+confidence: 0.85
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/alisoncardosoo/fit-flow
+---
+
+# Fit Flow Import Alias
+
+## Action
+
+Use path aliases (@/, ~/) instead of relative imports
+
+## Evidence
+
+- Import analysis shows alias pattern
+- Example: import { x } from '@/lib/x'
+
+---
+id: fit-flow-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/alisoncardosoo/fit-flow
+---
+
+# Fit Flow Export Style
+
+## Action
+
+Prefer mixed exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: mixed
+
+---
+id: fit-flow-arch-type-based
+trigger: "when adding new code"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: https://github.com/alisoncardosoo/fit-flow
+---
+
+# Fit Flow Arch Type Based
+
+## Action
+
+Place code in the appropriate type folder (components/, services/, utils/, etc.)
+
+## Evidence
+
+- Type-based module organization detected
+- Folders: components, pages
+
+---
+id: fit-flow-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/alisoncardosoo/fit-flow
+---
+
+# Fit Flow Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: fit-flow-instinct-file-naming
+trigger: "When creating a new file in the codebase"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct File Naming
+
+## Action
+
+Name the file using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.files
+
+---
+id: fit-flow-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Function Naming
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions
+
+---
+id: fit-flow-instinct-class-naming
+trigger: "When creating a new class"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes
+
+---
+id: fit-flow-instinct-constant-naming
+trigger: "When declaring a constant"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern in namingConventions.constants
+
+---
+id: fit-flow-instinct-import-style
+trigger: "When importing modules"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Import Style
+
+## Action
+
+Use alias import style
+
+## Evidence
+
+- Pattern in importStyle
+
+---
+id: fit-flow-instinct-export-style
+trigger: "When exporting modules or components"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Export Style
+
+## Action
+
+Use either default or named exports as appropriate (mixed export style)
+
+## Evidence
+
+- Pattern in exportStyle
+
+---
+id: fit-flow-instinct-try-catch-errors
+trigger: "When handling errors in code"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Try Catch Errors
+
+## Action
+
+Use try-catch blocks for error handling
+
+## Evidence
+
+- Pattern in errorHandling.style
+
+---
+id: fit-flow-instinct-no-custom-errors
+trigger: "When defining error handling logic"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct No Custom Errors
+
+## Action
+
+Do not create custom error classes
+
+## Evidence
+
+- Pattern in errorHandling.customErrorClasses
+
+---
+id: fit-flow-instinct-no-error-boundaries
+trigger: "When considering React error boundaries"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct No Error Boundaries
+
+## Action
+
+Do not implement error boundaries
+
+## Evidence
+
+- Pattern in errorHandling.errorBoundaries
+
+---
+id: fit-flow-instinct-no-global-error-handler
+trigger: "When considering a global error handler"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct No Global Error Handler
+
+## Action
+
+Do not implement a global error handler
+
+## Evidence
+
+- Pattern in errorHandling.globalHandler
+
+---
+id: fit-flow-instinct-test-location
+trigger: "When adding or updating tests"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Test Location
+
+## Action
+
+Place test files in a separate location from source files
+
+## Evidence
+
+- Pattern in architecture.testLocation
+
+---
+id: fit-flow-instinct-commit-format-freeform
+trigger: "When writing a commit message"
+confidence: 0.8
+domain: git
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Commit Format Freeform
+
+## Action
+
+Use a freeform commit message without a required prefix
+
+## Evidence
+
+- Pattern in commits.type
+- Seen in commit: 'Cronômetro de descanso: card manual fixo no rodapé em vez de modal fullscreen'
+
+---
+id: fit-flow-instinct-commit-length
+trigger: "When composing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: alisoncardosoo/fit-flow
+---
+
+# Fit Flow Instinct Commit Length
+
+## Action
+
+Keep the commit message concise, around 77 characters on average
+
+## Evidence
+
+- Pattern in commits.averageLength
+
