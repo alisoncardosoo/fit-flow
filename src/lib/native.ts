@@ -67,17 +67,22 @@ export async function initNative(): Promise<void> {
 
 /**
  * Converte um deep link (ex.: com.fitflow.app://login-callback#access_token=...)
- * em uma rota interna que o React Router entende. O Supabase devolve tokens no
- * fragmento (#) ou query (?); preservamos ambos.
+ * em uma rota interna que o React Router entende. Em custom schemes o "host" é
+ * o destino (login-callback / reset-password); o Supabase devolve os tokens no
+ * fragmento (#) ou query (?), que preservamos para o client detectar a sessão.
  */
 function handleDeepLink(url: string): void {
   try {
     const parsed = new URL(url);
-    const path = parsed.pathname || "/";
+    const host = parsed.host || parsed.pathname.replace(/^\/+/, "");
     const search = parsed.search || "";
     const hash = parsed.hash || "";
-    // Repassa para o app sem reload (o AuthProvider trata o hash do Supabase).
-    const target = `${path}${search}${hash}` || "/";
+
+    // Mapeia o host do deep link para uma rota real do app.
+    const route = host === "reset-password" ? "/reset-password" : "/";
+
+    // Repassa para o app sem reload (o supabase-js detecta a sessão na URL).
+    const target = `${route}${search}${hash}`;
     window.history.replaceState({}, "", target);
     window.dispatchEvent(new PopStateEvent("popstate"));
   } catch (e) {

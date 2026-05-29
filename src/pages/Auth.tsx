@@ -8,8 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import { SupportDevCard } from "@/components/SupportDevCard";
-
-const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+import { authRedirectBase } from "@/lib/auth";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -28,7 +27,7 @@ export default function Auth() {
           email,
           password,
           options: {
-            emailRedirectTo: APP_URL,
+            emailRedirectTo: authRedirectBase(),
             data: { display_name: name || email.split("@")[0] },
           },
         });

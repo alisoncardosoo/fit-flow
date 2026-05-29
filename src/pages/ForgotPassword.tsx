@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SupportDevCard } from "@/components/SupportDevCard";
-
-const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
-const AUTH_REDIRECT_URL = import.meta.env.VITE_AUTH_REDIRECT_URL || `${APP_URL}/reset-password`;
+import { resetPasswordRedirect } from "@/lib/auth";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -21,7 +19,7 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: AUTH_REDIRECT_URL,
+        redirectTo: resetPasswordRedirect(),
       });
       if (error) throw error;
       setSent(true);

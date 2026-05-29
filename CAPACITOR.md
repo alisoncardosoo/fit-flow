@@ -65,14 +65,26 @@ máquina, rode `npm run dev` e `npm run ios:run`. As mudanças aparecem sem rebu
 2. Adicione também **Background Modes** → marque **Remote notifications**
    (o `Info.plist` já declara isso, mas a capability precisa estar ligada).
 
-### 3. Deep link do OAuth (login social)
-O login social do Supabase precisa voltar para o app via custom scheme:
+### 3. Deep link do OAuth / emails de auth
+Os redirects do Supabase precisam voltar para o app via custom scheme. O código
+já trata isso (`src/lib/auth.ts` escolhe o redirect certo por plataforma e
+`src/lib/native.ts` converte o deep link em rota interna). Falta só configurar:
 1. No Xcode: target **App** → **Info** → **URL Types** → **+**.
 2. **URL Schemes** = `com.fitflow.app`.
-3. No painel do Supabase (**Authentication → URL Configuration**), adicione
-   `com.fitflow.app://login-callback` em **Redirect URLs**.
-4. Ao chamar `signInWithOAuth`, use `redirectTo: 'com.fitflow.app://login-callback'`
-   quando estiver no app nativo (`isNativePlatform()`).
+3. No painel do Supabase (**Authentication → URL Configuration → Redirect URLs**),
+   adicione:
+   - `com.fitflow.app://login-callback` (signup/confirmação de email e OAuth)
+   - `com.fitflow.app://reset-password` (redefinição de senha)
+
+**Login social:** quando quiser adicionar botões de Google/Apple/etc, use o
+helper já pronto:
+```ts
+import { signInWithProvider } from "@/lib/auth";
+// <button onClick={() => signInWithProvider("apple")}>Entrar com Apple</button>
+```
+Ele usa o fluxo de redirect na web e, no app, abre o provedor no navegador do
+sistema (`@capacitor/browser`) e volta pelo deep link automaticamente. Lembre de
+habilitar o provider em **Authentication → Providers** no Supabase.
 
 ### 4. Ícones e splash
 Use [`@capacitor/assets`](https://github.com/ionic-team/capacitor-assets):
