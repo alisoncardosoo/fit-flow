@@ -85,34 +85,39 @@ No Xcode, selecione um simulador ou iPhone conectado e aperte **Run (⌘R)**.
 
 ---
 
-## 🔔 Push nativo (APNs) — lado servidor (TODO)
+## 🔔 Push nativo (APNs) — lado servidor
 
-O cliente já registra o token APNs e o salva em `push_subscriptions` com
-`platform = 'ios'`. A edge function `send-push` atual envia **apenas Web Push
-(VAPID)** — ela agora filtra `platform = 'web'`, então os tokens iOS são
-ignorados por ela (sem quebrar nada).
+A edge function `send-push` **já envia para os dois canais**: Web Push (VAPID)
+para browser/PWA e **APNs** para tokens nativos iOS. Ela busca todas as
+inscrições do usuário e separa por `platform`: linhas `ios` (token salvo como
+`apns:<token>`) vão por APNs HTTP/2 com auth por token (.p8); as demais seguem
+por Web Push como antes.
 
-Para entregar push no iOS, falta criar o envio via **APNs HTTP/2**:
+Se os secrets do APNs **não** estiverem configurados, o envio APNs é pulado
+silenciosamente (o Web Push continua funcionando normalmente).
+
+### Configurar o APNs
 
 1. No [Apple Developer](https://developer.apple.com) → **Keys**, crie uma
-   **APNs Auth Key (.p8)**. Guarde: `Key ID`, `Team ID`, e o conteúdo do `.p8`.
+   **APNs Auth Key (.p8)**. Guarde: `Key ID`, `Team ID` e o arquivo `.p8`.
 2. Configure os secrets no Supabase:
    ```bash
-   supabase secrets set APNS_KEY_ID=xxx APNS_TEAM_ID=yyy \
-     APNS_BUNDLE_ID=com.fitflow.app APNS_PRIVATE_KEY="$(cat AuthKey_xxx.p8)"
+   supabase secrets set \
+     APNS_KEY_ID=ABC123XYZ \
+     APNS_TEAM_ID=TEAMID1234 \
+     APNS_BUNDLE_ID=com.fitflow.app \
+     APNS_HOST=api.sandbox.push.apple.com \
+     APNS_PRIVATE_KEY="$(cat AuthKey_ABC123XYZ.p8)"
    ```
-3. Crie uma function `send-push-apns` (ou ramo na `send-push`) que:
-   - lê as inscrições com `platform = 'ios'`;
-   - monta um JWT ES256 assinado com a `.p8` (`alg: ES256`, header `kid`/`iss`/`iat`);
-   - faz `POST https://api.push.apple.com/3/device/<token>` com headers
-     `authorization: bearer <jwt>`, `apns-topic: com.fitflow.app`, `apns-push-type: alert`;
-   - corpo: `{ "aps": { "alert": { "title", "body" }, "sound": "default" },
-     "type", "payload", "notification_id", "handle" }`.
-   - O `crypto.subtle` (ES256) já é usado na `send-push` atual — dá pra reaproveitar os helpers de assinatura.
-4. Atualize o trigger/DB que chama `send-push` para também chamar `send-push-apns`.
+   - `APNS_HOST` = `api.sandbox.push.apple.com` para builds de **dev** (rodando
+     via Xcode) e `api.push.apple.com` para **produção** (TestFlight/App Store).
+3. Faça deploy: `supabase functions deploy send-push`.
 
-> Em produção use `api.push.apple.com`; no ambiente de desenvolvimento (builds
-> via Xcode) use `api.sandbox.push.apple.com`.
+> O cliente (`src/lib/nativePush.ts`) já registra o device token e o salva em
+> `push_subscriptions` com `platform = 'ios'`. Nada mais a fazer no app.
+
+> Tokens mortos (HTTP 410 / `BadDeviceToken`) são removidos automaticamente,
+> igual ao fluxo Web Push.
 
 ---
 

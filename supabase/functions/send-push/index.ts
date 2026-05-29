@@ -1,6 +1,7 @@
-// Web Push sender — reads a notification row and fans out to all push_subscriptions
-// of the recipient. Reuses the title/body that the DB triggers already built
-// (which include the @username via public_handle()).
+// Push sender — reads a notification row and fans out to all push_subscriptions
+// of the recipient. Web Push (VAPID) for browsers/PWA and APNs (token-based,
+// .p8) for native iOS via Capacitor. Reuses the title/body that the DB triggers
+// already built (which include the @username via public_handle()).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -15,6 +16,19 @@ const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_SUBJECT =
   Deno.env.get("VAPID_SUBJECT") ?? "mailto:noreply@fitflow.app";
+
+// ---------- APNs (native iOS) config ----------
+// Token-based auth: cole o conteúdo do .p8 em APNS_PRIVATE_KEY.
+// APNS_HOST: "api.sandbox.push.apple.com" para builds de dev (Xcode),
+//            "api.push.apple.com" para produção/TestFlight/App Store.
+const APNS_KEY_ID = Deno.env.get("APNS_KEY_ID");
+const APNS_TEAM_ID = Deno.env.get("APNS_TEAM_ID");
+const APNS_BUNDLE_ID = Deno.env.get("APNS_BUNDLE_ID");
+const APNS_PRIVATE_KEY = Deno.env.get("APNS_PRIVATE_KEY");
+const APNS_HOST = Deno.env.get("APNS_HOST") ?? "api.sandbox.push.apple.com";
+const apnsConfigured = Boolean(
+  APNS_KEY_ID && APNS_TEAM_ID && APNS_BUNDLE_ID && APNS_PRIVATE_KEY,
+);
 
 // ---------- base64url helpers ----------
 function b64uToBytes(s: string): Uint8Array {
@@ -203,6 +217,95 @@ async function encryptPayload(
   return { body, serverPublicKey: serverPublic, salt };
 }
 
+// ---------- APNs: token-based auth (.p8 → ES256 JWT) ----------
+function pemToDer(pem: string): Uint8Array {
+  const b64 = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+let apnsKeyPromise: Promise<CryptoKey> | null = null;
+function importApnsKey(): Promise<CryptoKey> {
+  if (!apnsKeyPromise) {
+    apnsKeyPromise = crypto.subtle.importKey(
+      "pkcs8",
+      pemToDer(APNS_PRIVATE_KEY!),
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["sign"],
+    );
+  }
+  return apnsKeyPromise;
+}
+
+// APNs permite reusar o JWT por até 1h; cacheamos por ~50min.
+let cachedApnsJwt: { token: string; iat: number } | null = null;
+async function buildApnsJwt(): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedApnsJwt && now - cachedApnsJwt.iat < 50 * 60) {
+    return cachedApnsJwt.token;
+  }
+  const header = bytesToB64u(
+    new TextEncoder().encode(JSON.stringify({ alg: "ES256", kid: APNS_KEY_ID })),
+  );
+  const payload = bytesToB64u(
+    new TextEncoder().encode(JSON.stringify({ iss: APNS_TEAM_ID, iat: now })),
+  );
+  const unsigned = `${header}.${payload}`;
+  const key = await importApnsKey();
+  const sig = new Uint8Array(
+    await crypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      key,
+      new TextEncoder().encode(unsigned),
+    ),
+  );
+  const token = `${unsigned}.${bytesToB64u(sig)}`;
+  cachedApnsJwt = { token, iat: now };
+  return token;
+}
+
+// Envia para um device token APNs. Retorna o status HTTP (410 = token morto).
+async function sendApns(
+  deviceToken: string,
+  notif: {
+    id: string;
+    type: string;
+    title: string;
+    body: string | null;
+    payload: Record<string, unknown> | null;
+  },
+  handle: string | null,
+): Promise<number> {
+  const jwt = await buildApnsJwt();
+  const body = JSON.stringify({
+    aps: {
+      alert: { title: notif.title, body: notif.body ?? "" },
+      sound: "default",
+    },
+    type: notif.type,
+    payload: notif.payload ?? {},
+    notification_id: notif.id,
+    handle,
+  });
+  const res = await fetch(`https://${APNS_HOST}/3/device/${deviceToken}`, {
+    method: "POST",
+    headers: {
+      authorization: `bearer ${jwt}`,
+      "apns-topic": APNS_BUNDLE_ID!,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+    },
+    body,
+  });
+  return res.status;
+}
+
 // ---------- Send to a single subscription ----------
 async function sendOne(
   endpoint: string,
@@ -259,13 +362,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Apenas inscrições Web Push (VAPID). Destinos nativos (platform != 'web',
-    // ex.: APNs/iOS) usam outro protocolo — ver send-push-apns em CAPACITOR.md.
+    // Todos os destinos do usuário. `platform` separa Web Push (VAPID) de APNs.
     const { data: subs } = await admin
       .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
-      .eq("user_id", notif.user_id)
-      .eq("platform", "web");
+      .select("id, endpoint, p256dh, auth, platform")
+      .eq("user_id", notif.user_id);
 
     if (!subs || subs.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {
@@ -274,7 +375,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Extract @handle from title or body so the SW can render it nicely.
+    // Extract @handle from title or body so clients can render it nicely.
     const haystack = `${notif.title ?? ""} ${notif.body ?? ""}`;
     const handleMatch = haystack.match(/@[a-z0-9_.]{3,30}/i);
     const handle = handleMatch ? handleMatch[0] : null;
@@ -290,14 +391,29 @@ Deno.serve(async (req) => {
       }),
     );
 
+    // Linhas nativas guardam o device token como "apns:<token>".
+    const isApns = (s: { platform?: string | null; endpoint: string }) =>
+      s.platform === "ios" || s.endpoint.startsWith("apns:");
+
     let sent = 0;
     const stale: string[] = [];
     await Promise.all(
       subs.map(async (s) => {
         try {
-          const status = await sendOne(s.endpoint, s.p256dh, s.auth, payload);
-          if (status === 404 || status === 410) stale.push(s.id);
-          else if (status >= 200 && status < 300) sent++;
+          let status: number;
+          if (isApns(s)) {
+            // Pula silenciosamente se o APNs ainda não estiver configurado.
+            if (!apnsConfigured) return;
+            const token = s.endpoint.replace(/^apns:/, "");
+            status = await sendApns(token, notif, handle);
+            // 410 = token removido/expirado; 400 com BadDeviceToken também.
+            if (status === 410 || status === 400) stale.push(s.id);
+            else if (status >= 200 && status < 300) sent++;
+          } else {
+            status = await sendOne(s.endpoint, s.p256dh, s.auth, payload);
+            if (status === 404 || status === 410) stale.push(s.id);
+            else if (status >= 200 && status < 300) sent++;
+          }
         } catch (e) {
           console.error("push send failed", s.id, e);
         }
