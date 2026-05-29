@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isNativePlatform } from "@/lib/native";
 
 // Public VAPID key — safe to ship to the client (it's the *public* half).
 export const VAPID_PUBLIC_KEY =
@@ -24,6 +25,8 @@ function arrayBufferToB64u(buf: ArrayBuffer | null): string {
 }
 
 export function isPushSupported(): boolean {
+  // No app nativo o push é sempre suportado (APNs/FCM via Capacitor).
+  if (isNativePlatform()) return true;
   return (
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
@@ -59,6 +62,10 @@ async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
 export type PushStatus = "unsupported" | "blocked" | "denied" | "subscribed" | "idle";
 
 export async function getPushStatus(userId: string): Promise<PushStatus> {
+  if (isNativePlatform()) {
+    const { getNativePushStatus } = await import("@/lib/nativePush");
+    return getNativePushStatus(userId);
+  }
   if (!isPushSupported()) return "unsupported";
   const perm = Notification.permission;
   if (perm === "denied") return "denied";
@@ -79,6 +86,10 @@ export async function getPushStatus(userId: string): Promise<PushStatus> {
 }
 
 export async function enablePush(userId: string): Promise<PushStatus> {
+  if (isNativePlatform()) {
+    const { enableNativePush } = await import("@/lib/nativePush");
+    return enableNativePush(userId);
+  }
   if (!isPushSupported()) return "unsupported";
   if (isPreviewContext()) {
     // Allow trying anyway, but warn — service workers behave oddly in iframes.
@@ -127,6 +138,10 @@ export async function enablePush(userId: string): Promise<PushStatus> {
 }
 
 export async function disablePush(userId: string): Promise<void> {
+  if (isNativePlatform()) {
+    const { disableNativePush } = await import("@/lib/nativePush");
+    return disableNativePush(userId);
+  }
   const reg = await navigator.serviceWorker.getRegistration(SW_URL);
   const sub = await reg?.pushManager.getSubscription();
   if (sub) {

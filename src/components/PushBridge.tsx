@@ -148,7 +148,7 @@ export function PushBridge() {
       );
     }
 
-    // 1) Service worker → window messages
+    // 1) Service worker → window messages (Web Push)
     const onSwMessage = (e: MessageEvent) => {
       const data = e.data as { kind?: string } & PushPayload;
       if (!data || data.kind !== "push-received") return;
@@ -157,6 +157,18 @@ export function PushBridge() {
     if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("message", onSwMessage);
     }
+
+    // 1b) Push nativo (Capacitor/APNs) → CustomEvents na window.
+    const onNativeReceived = (e: Event) => {
+      rememberAndShow((e as CustomEvent<PushPayload>).detail);
+    };
+    const onNativeOpen = (e: Event) => {
+      const p = (e as CustomEvent<PushPayload>).detail;
+      window.dispatchEvent(new CustomEvent("flow:notif-bump"));
+      navigate(pickRoute(p));
+    };
+    window.addEventListener("flow:push-received", onNativeReceived);
+    window.addEventListener("flow:push-open", onNativeOpen);
 
     // 2) Realtime fallback (works when push not enabled / app focused on desktop)
     let channelRef: ReturnType<typeof supabase.channel> | null = null;
@@ -197,6 +209,8 @@ export function PushBridge() {
       if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
         navigator.serviceWorker.removeEventListener("message", onSwMessage);
       }
+      window.removeEventListener("flow:push-received", onNativeReceived);
+      window.removeEventListener("flow:push-open", onNativeOpen);
       if (channelRef) void supabase.removeChannel(channelRef);
     };
   }, [user, navigate]);

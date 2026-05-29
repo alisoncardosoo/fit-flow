@@ -259,10 +259,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Apenas inscrições Web Push (VAPID). Destinos nativos (platform != 'web',
+    // ex.: APNs/iOS) usam outro protocolo — ver send-push-apns em CAPACITOR.md.
     const { data: subs } = await admin
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth")
-      .eq("user_id", notif.user_id);
+      .eq("user_id", notif.user_id)
+      .eq("platform", "web");
 
     if (!subs || subs.length === 0) {
       return new Response(JSON.stringify({ ok: true, sent: 0 }), {
