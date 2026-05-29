@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="1024" x2="1024" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a1304"/>
+      <stop offset="0.45" stop-color="#1f3310"/>
+      <stop offset="0.8" stop-color="#3c5a1f"/>
+      <stop offset="1" stop-color="#5c8230"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="1024" x2="1024" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9bd14a" stop-opacity="0"/>
+      <stop offset="0.85" stop-color="#9bd14a" stop-opacity="0"/>
+      <stop offset="1" stop-color="#b6e36a" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="arrow" x1="120" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C7EE6B" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#C7EE6B" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#C7EE6B" stop-opacity="1"/>
+    </linearGradient>
+    <clipPath id="round">
+      <rect x="0" y="0" width="1024" height="1024" rx="225" ry="225"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#round)">
+    <rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>
+    <rect x="0" y="0" width="1024" height="1024" fill="url(#shine)"/>
+    <!-- diagonal light streaks toward top-right -->
+    <g stroke="#cdef7a" stroke-opacity="0.10" stroke-width="34" stroke-linecap="round">
+      <line x1="560" y1="1024" x2="1180" y2="404"/>
+      <line x1="700" y1="1024" x2="1320" y2="404"/>
+    </g>
+
+    <g font-family="FreeSans" font-weight="bold" font-style="oblique" fill="#C7EE6B">
+      <text x="92" y="430" font-size="300" letter-spacing="-6">FIT</text>
+      <text x="90" y="688" font-size="282" letter-spacing="-12">FLOW</text>
+    </g>
+
+    <!-- three trailing arrows -->
+    <g stroke="url(#arrow)" stroke-width="26" stroke-linecap="butt" fill="none">
+      <line x1="150" y1="735" x2="860" y2="735"/>
+      <line x1="150" y1="800" x2="790" y2="800"/>
+      <line x1="150" y1="862" x2="720" y2="862"/>
+    </g>
+    <g fill="#C7EE6B">
+      <path d="M860 712 L912 735 L860 758 Z"/>
+      <path d="M790 777 L842 800 L790 823 Z"/>
+      <path d="M720 839 L772 862 L720 885 Z"/>
+    </g>
+  </g>
+</svg>
