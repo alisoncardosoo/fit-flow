@@ -54,18 +54,18 @@ export default function Auth() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-dvh overflow-x-hidden bg-background">
       {/* Background glow */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-primary/30 blur-[120px]" />
         <div className="absolute bottom-0 right-0 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-6 py-10">
+      <div className="safe-top safe-bottom relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-6">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12 flex flex-col items-center gap-4"
+          className="flex flex-col items-center gap-4"
         >
           <img
             src={logo}

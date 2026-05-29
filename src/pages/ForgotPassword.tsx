@@ -35,12 +35,12 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-dvh overflow-x-hidden bg-background">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-primary/30 blur-[120px]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-md flex-col px-6 py-10">
+      <div className="safe-top safe-bottom relative mx-auto flex min-h-dvh w-full max-w-md flex-col px-6">
         <Link
           to="/auth"
           className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition"
@@ -49,6 +49,7 @@ export default function ForgotPassword() {
           Voltar para login
         </Link>
 
+        <div className="flex flex-1 flex-col justify-center pb-4">
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -122,6 +123,7 @@ export default function ForgotPassword() {
         </motion.div>
 
         <SupportDevCard className="mt-8" />
+        </div>
       </div>
     </div>
   );
