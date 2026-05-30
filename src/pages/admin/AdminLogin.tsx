@@ -173,14 +173,17 @@ export default function AdminLogin() {
             </div>
           </form>
 
-          {/* Demo hint */}
+          {/* Acesso inicial */}
           <div className="mt-6 rounded-xl border border-border/60 bg-secondary/50 p-3 text-xs text-muted-foreground">
-            <p className="font-semibold text-foreground">Acesso de demonstração</p>
+            <p className="font-semibold text-foreground">Acesso inicial</p>
             <p className="mt-1">
               E-mail: <span className="font-mono">admin@fitflow.com.br</span>
             </p>
             <p>
               Senha: <span className="font-mono">#Teste123</span>
+            </p>
+            <p className="mt-1.5 text-[11px]">
+              Requer que o usuário admin tenha sido criado no Supabase (ver ADMIN_SETUP.md).
             </p>
           </div>
         </motion.div>

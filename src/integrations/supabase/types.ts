@@ -497,6 +497,147 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      coupons: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          max_uses: number
+          plan_code: string | null
+          type: Database["public"]["Enums"]["coupon_type"]
+          updated_at: string
+          uses: number
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          plan_code?: string | null
+          type?: Database["public"]["Enums"]["coupon_type"]
+          updated_at?: string
+          uses?: number
+          value?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          plan_code?: string | null
+          type?: Database["public"]["Enums"]["coupon_type"]
+          updated_at?: string
+          uses?: number
+          value?: number
+        }
+        Relationships: []
+      }
+      notification_campaigns: {
+        Row: {
+          audience: string
+          body: string | null
+          channel: Database["public"]["Enums"]["campaign_channel"]
+          created_at: string
+          created_by: string | null
+          id: string
+          opened: number
+          reach: number
+          scheduled_at: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          title: string
+        }
+        Insert: {
+          audience?: string
+          body?: string | null
+          channel?: Database["public"]["Enums"]["campaign_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          opened?: number
+          reach?: number
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          title: string
+        }
+        Update: {
+          audience?: string
+          body?: string | null
+          channel?: Database["public"]["Enums"]["campaign_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          opened?: number
+          reach?: number
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          title?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          interval: string
+          name: string
+          price_cents: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          interval?: string
+          name: string
+          price_cents?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          interval?: string
+          name?: string
+          price_cents?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -726,6 +867,160 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          amount_cents: number
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string
+          gateway: Database["public"]["Enums"]["payment_gateway"]
+          gateway_customer_id: string | null
+          gateway_subscription_id: string | null
+          id: string
+          plan_id: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents?: number
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          gateway?: Database["public"]["Enums"]["payment_gateway"]
+          gateway_customer_id?: string | null
+          gateway_subscription_id?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          gateway?: Database["public"]["Enums"]["payment_gateway"]
+          gateway_customer_id?: string | null
+          gateway_subscription_id?: string | null
+          id?: string
+          plan_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_events: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          event_type: Database["public"]["Enums"]["subscription_event_type"]
+          gateway: Database["public"]["Enums"]["payment_gateway"]
+          id: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          event_type: Database["public"]["Enums"]["subscription_event_type"]
+          gateway?: Database["public"]["Enums"]["payment_gateway"]
+          id?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["subscription_event_type"]
+          gateway?: Database["public"]["Enums"]["payment_gateway"]
+          id?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          assigned_to: string | null
+          body: string | null
+          channel: Database["public"]["Enums"]["ticket_channel"]
+          created_at: string
+          id: string
+          priority: Database["public"]["Enums"]["ticket_priority"]
+          status: Database["public"]["Enums"]["ticket_status"]
+          subject: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          body?: string | null
+          channel?: Database["public"]["Enums"]["ticket_channel"]
+          created_at?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          status?: Database["public"]["Enums"]["ticket_status"]
+          subject: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          body?: string | null
+          channel?: Database["public"]["Enums"]["ticket_channel"]
+          created_at?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          status?: Database["public"]["Enums"]["ticket_status"]
+          subject?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       workout_exercises: {
         Row: {
           exercise_id: string
@@ -890,6 +1185,62 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_at_risk_counts: { Args: never; Returns: Json }
+      admin_dashboard_kpis: { Args: never; Returns: Json }
+      admin_engagement_heatmap: {
+        Args: { _days?: number }
+        Returns: { dow: number; hour: number; sessions: number }[]
+      }
+      admin_exercise_usage: {
+        Args: { _asc?: boolean; _limit?: number }
+        Returns: {
+          exercise_id: string
+          muscle_group: string
+          name: string
+          uses: number
+        }[]
+      }
+      admin_list_users: {
+        Args: { _limit?: number; _offset?: number; _search?: string }
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          goal: string
+          last_seen: string
+          plan_code: string
+          streak: number
+          subscription_status: string
+          total_sessions: number
+          user_id: string
+          username: string
+        }[]
+      }
+      admin_plan_distribution: {
+        Args: never
+        Returns: { plan_code: string; plan_name: string; total: number }[]
+      }
+      admin_revenue_monthly: {
+        Args: { _months?: number }
+        Returns: { month: string; revenue_cents: number }[]
+      }
+      admin_streak_buckets: { Args: never; Returns: Json }
+      admin_user_growth: {
+        Args: { _days?: number }
+        Returns: { day: string; novos: number; total: number }[]
+      }
+      admin_workout_analytics: { Args: never; Returns: Json }
+      admin_workout_metrics: {
+        Args: never
+        Returns: {
+          archived: boolean
+          athletes: number
+          completions: number
+          name: string
+          updated_at: string
+          workout_id: string
+        }[]
+      }
       are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       generate_friend_code: { Args: never; Returns: string }
       get_exercise_pr: {
@@ -932,12 +1283,34 @@ export type Database = {
           username: string
         }[]
       }
+      get_my_roles: { Args: never; Returns: Database["public"]["Enums"]["app_role"][] }
       get_total_sessions: { Args: { _user_id: string }; Returns: number }
       get_user_streak: { Args: { _user_id: string }; Returns: number }
+      has_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"]; _user_id: string }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_username_available: { Args: { _username: string }; Returns: boolean }
       public_handle: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
+      app_role: "super_admin" | "admin" | "editor" | "support"
+      campaign_channel: "push" | "email" | "in_app"
+      campaign_status: "draft" | "scheduled" | "sent"
+      coupon_type: "percent" | "fixed" | "trial"
+      payment_gateway: "stripe" | "mercadopago" | "manual"
+      subscription_event_type:
+        | "new"
+        | "renewal"
+        | "upgrade"
+        | "downgrade"
+        | "canceled"
+      subscription_status: "active" | "trialing" | "past_due" | "canceled"
+      ticket_channel: "email" | "chat" | "app"
+      ticket_priority: "low" | "medium" | "high" | "critical"
+      ticket_status: "open" | "pending" | "resolved"
       challenge_period: "weekly" | "monthly" | "custom"
       challenge_type: "most_sessions" | "most_volume" | "most_frequency"
       difficulty_level: "beginner" | "intermediate" | "advanced"

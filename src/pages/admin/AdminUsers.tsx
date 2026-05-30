@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Eye,
@@ -7,7 +8,6 @@ import {
   KeyRound,
   CreditCard,
   MoreHorizontal,
-  Download,
 } from "lucide-react";
 import {
   Table,
@@ -31,68 +31,55 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { AdminPageHeader, AdminCard, StatusPill, AdminEmptyState } from "@/components/admin/AdminUI";
 import {
-  users,
+  AdminPageHeader,
+  AdminCard,
+  StatusPill,
+  AdminEmptyState,
+  AdminSkeleton,
+  AdminErrorState,
+} from "@/components/admin/AdminUI";
+import { fetchAdminUsers } from "@/services/admin.service";
+import {
   planLabel,
-  statusLabel,
+  planTone,
+  subStatusLabel,
+  subStatusTone,
   goalLabel,
   fmtDate,
   relativeDays,
-  type Plan,
-  type UserStatus,
-  type Goal,
 } from "@/lib/adminData";
-
-const statusTone: Record<UserStatus, "success" | "muted" | "destructive" | "warning"> = {
-  active: "success",
-  inactive: "muted",
-  blocked: "destructive",
-  trial: "warning",
-};
-
-const planTone: Record<Plan, "primary" | "muted" | "success"> = {
-  free: "muted",
-  premium: "primary",
-  annual: "success",
-};
 
 export default function AdminUsers() {
   const [query, setQuery] = useState("");
-  const [plan, setPlan] = useState<Plan | "all">("all");
-  const [status, setStatus] = useState<UserStatus | "all">("all");
-  const [goal, setGoal] = useState<Goal | "all">("all");
+  const [plan, setPlan] = useState<string>("all");
+  const [status, setStatus] = useState<string>("all");
+  const [goal, setGoal] = useState<string>("all");
 
-  const filtered = useMemo(
-    () =>
-      users.filter((u) => {
-        const q = query.trim().toLowerCase();
-        const matchesQuery =
-          !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-        return (
-          matchesQuery &&
-          (plan === "all" || u.plan === plan) &&
-          (status === "all" || u.status === status) &&
-          (goal === "all" || u.goal === goal)
-        );
-      }),
-    [query, plan, status, goal],
-  );
+  const usersQ = useQuery({
+    queryKey: ["admin", "users", query],
+    queryFn: () => fetchAdminUsers(query, 200, 0),
+  });
+
+  const filtered = useMemo(() => {
+    const rows = usersQ.data ?? [];
+    return rows.filter(
+      (u) =>
+        (plan === "all" || u.planCode === plan) &&
+        (status === "all" || u.subscriptionStatus === status) &&
+        (goal === "all" || u.goal === goal),
+    );
+  }, [usersQ.data, plan, status, goal]);
 
   return (
     <div>
       <AdminPageHeader
         title="Usuários"
-        subtitle={`${users.length} cadastrados • gestão completa da base`}
-        actions={
-          <Button variant="outline" className="h-10 gap-1.5 rounded-xl border-border">
-            <Download className="h-4 w-4" /> Exportar CSV
-          </Button>
-        }
+        subtitle="Gestão completa da base de usuários"
       />
 
       <AdminCard className="overflow-hidden">
@@ -103,13 +90,14 @@ export default function AdminUsers() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nome ou e-mail"
+              placeholder="Buscar por nome, e-mail ou username"
               className="h-10 rounded-xl border-border bg-secondary pl-10"
+              aria-label="Buscar usuários"
             />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Select value={plan} onValueChange={(v) => setPlan(v as Plan | "all")}>
-              <SelectTrigger className="h-10 rounded-xl border-border bg-secondary text-sm">
+            <Select value={plan} onValueChange={setPlan}>
+              <SelectTrigger className="h-10 rounded-xl border-border bg-secondary text-sm" aria-label="Filtrar por plano">
                 <SelectValue placeholder="Plano" />
               </SelectTrigger>
               <SelectContent>
@@ -119,20 +107,20 @@ export default function AdminUsers() {
                 <SelectItem value="annual">Anual</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={status} onValueChange={(v) => setStatus(v as UserStatus | "all")}>
-              <SelectTrigger className="h-10 rounded-xl border-border bg-secondary text-sm">
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="h-10 rounded-xl border-border bg-secondary text-sm" aria-label="Filtrar por status">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="inactive">Inativo</SelectItem>
-                <SelectItem value="trial">Trial</SelectItem>
-                <SelectItem value="blocked">Bloqueado</SelectItem>
+                <SelectItem value="trialing">Trial</SelectItem>
+                <SelectItem value="past_due">Pendente</SelectItem>
+                <SelectItem value="canceled">Cancelado</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={goal} onValueChange={(v) => setGoal(v as Goal | "all")}>
-              <SelectTrigger className="h-10 rounded-xl border-border bg-secondary text-sm">
+            <Select value={goal} onValueChange={setGoal}>
+              <SelectTrigger className="h-10 rounded-xl border-border bg-secondary text-sm" aria-label="Filtrar por objetivo">
                 <SelectValue placeholder="Objetivo" />
               </SelectTrigger>
               <SelectContent>
@@ -140,118 +128,119 @@ export default function AdminUsers() {
                 <SelectItem value="hypertrophy">Hipertrofia</SelectItem>
                 <SelectItem value="weight_loss">Emagrecimento</SelectItem>
                 <SelectItem value="conditioning">Condicionamento</SelectItem>
-                <SelectItem value="health">Saúde</SelectItem>
                 <SelectItem value="strength">Força</SelectItem>
+                <SelectItem value="endurance">Resistência</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
         {/* Table */}
-        <div className="-mx-4 overflow-x-auto sm:-mx-5">
-          <div className="min-w-[860px] px-4 sm:px-5">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Objetivo</TableHead>
-                  <TableHead>Plano</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Cadastro</TableHead>
-                  <TableHead>Último acesso</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.slice(0, 25).map((u) => (
-                  <TableRow key={u.id} className="border-border/60">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={u.avatar} alt={u.name} />
-                          <AvatarFallback className="bg-secondary text-xs">
-                            {u.name.slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{u.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {goalLabel[u.goal]}
-                    </TableCell>
-                    <TableCell>
-                      <StatusPill tone={planTone[u.plan]}>{planLabel[u.plan]}</StatusPill>
-                    </TableCell>
-                    <TableCell>
-                      <StatusPill tone={statusTone[u.status]}>{statusLabel[u.status]}</StatusPill>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {fmtDate(u.createdAt)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {relativeDays(u.lastSeenAt)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem onClick={() => toast.info(`Perfil de ${u.name}`)}>
-                            <Eye className="mr-2 h-4 w-4" /> Visualizar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast.info(`Editando ${u.name}`)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast.success("Link de redefinição enviado")}>
-                            <KeyRound className="mr-2 h-4 w-4" /> Resetar senha
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast.success("Assinatura cancelada")}>
-                            <CreditCard className="mr-2 h-4 w-4" /> Cancelar assinatura
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => toast.warning(`${u.name} bloqueado`)}
-                          >
-                            <Ban className="mr-2 h-4 w-4" /> Bloquear
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        {usersQ.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <AdminSkeleton key={i} className="h-14" />
+            ))}
           </div>
-        </div>
+        ) : usersQ.isError ? (
+          <AdminErrorState message={(usersQ.error as Error)?.message} onRetry={() => usersQ.refetch()} />
+        ) : (
+          <>
+            <div className="-mx-4 overflow-x-auto sm:-mx-5">
+              <div className="min-w-[860px] px-4 sm:px-5">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Objetivo</TableHead>
+                      <TableHead>Plano</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Cadastro</TableHead>
+                      <TableHead>Último acesso</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((u) => {
+                      const name = u.displayName || u.username || u.email.split("@")[0];
+                      return (
+                        <TableRow key={u.userId} className="border-border/60">
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-9 w-9">
+                                <AvatarFallback className="bg-secondary text-xs">
+                                  {name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium">{name}</p>
+                                <p className="truncate text-xs text-muted-foreground">{u.email}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {u.goal ? goalLabel[u.goal] ?? u.goal : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <StatusPill tone={planTone[u.planCode] ?? "muted"}>
+                              {planLabel[u.planCode] ?? u.planCode}
+                            </StatusPill>
+                          </TableCell>
+                          <TableCell>
+                            <StatusPill tone={subStatusTone[u.subscriptionStatus] ?? "muted"}>
+                              {subStatusLabel[u.subscriptionStatus] ?? u.subscriptionStatus}
+                            </StatusPill>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{fmtDate(u.createdAt)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{relativeDays(u.lastSeen)}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Ações para ${name}`}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem onClick={() => toast.info(`${name} • ${u.totalSessions} treinos • streak ${u.streak}d`)}>
+                                  <Eye className="mr-2 h-4 w-4" /> Visualizar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toast.info("Edição de perfil em breve")}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toast.success("Link de redefinição enviado")}>
+                                  <KeyRound className="mr-2 h-4 w-4" /> Resetar senha
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toast.success("Assinatura cancelada")}>
+                                  <CreditCard className="mr-2 h-4 w-4" /> Cancelar assinatura
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onClick={() => toast.warning(`${name} bloqueado`)}>
+                                  <Ban className="mr-2 h-4 w-4" /> Bloquear
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
 
-        {filtered.length === 0 && (
-          <AdminEmptyState
-            icon={<Search className="h-5 w-5" />}
-            title="Nenhum usuário encontrado"
-            description="Ajuste os filtros ou o termo de busca para ver resultados."
-          />
+            {filtered.length === 0 && (
+              <AdminEmptyState
+                icon={<Search className="h-5 w-5" />}
+                title="Nenhum usuário encontrado"
+                description="Ajuste os filtros ou o termo de busca para ver resultados."
+              />
+            )}
+
+            <div className="mt-4 text-xs text-muted-foreground">
+              {filtered.length} {filtered.length === 1 ? "usuário" : "usuários"}
+            </div>
+          </>
         )}
-
-        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            Mostrando {Math.min(filtered.length, 25)} de {filtered.length} resultados
-          </span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-8 rounded-lg border-border" disabled>
-              Anterior
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 rounded-lg border-border">
-              Próximo
-            </Button>
-          </div>
-        </div>
       </AdminCard>
     </div>
   );

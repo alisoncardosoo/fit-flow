@@ -1,29 +1,25 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 // ===========================================
 // Admin authentication + RBAC (Role Based Access Control)
 // ---------------------------------------------
-// Frontend-only demo auth for the Fit Flow admin panel. Credentials are
-// hardcoded ONLY for demonstration/development.
+// Autenticação REAL via Supabase Auth. O acesso ao painel é concedido
+// apenas a usuários que possuem um papel administrativo na tabela
+// public.user_roles (super_admin, admin, editor, support).
 //
-// ⚠️ PRODUÇÃO: as credenciais devem ser validadas no backend, com a senha
-// armazenada como hash (bcrypt/argon2) e nunca embutida no frontend. Esta
-// camada deve ser substituída por uma chamada autenticada à API/Supabase.
+// A senha é gerenciada pelo Supabase Auth (hash no backend) — nunca fica
+// no frontend. Veja ADMIN_SETUP.md para criar o usuário admin inicial.
 // ===========================================
 
 export type AdminRole = "super_admin" | "admin" | "editor" | "support";
 
 export interface AdminAccount {
   id: string;
-  name: string;
   email: string;
-  role: AdminRole;
-}
-
-export interface AdminSession {
-  account: AdminAccount;
-  /** Epoch ms when the session was issued. */
-  issuedAt: number;
+  name: string;
+  roles: AdminRole[];
 }
 
 export const roleLabel: Record<AdminRole, string> = {
@@ -33,8 +29,8 @@ export const roleLabel: Record<AdminRole, string> = {
   support: "Suporte",
 };
 
-// Capabilities per role — the foundation for fine-grained RBAC. Screens can
-// call `can(role, "users:write")` to gate actions as the product grows.
+// Capabilities por papel — base para RBAC granular. As telas chamam
+// `can(roles, "users:write")` para liberar ações conforme o produto cresce.
 export type Permission =
   | "dashboard:view"
   | "users:view"
@@ -60,93 +56,121 @@ const rolePermissions: Record<AdminRole, Permission[]> = {
   support: ["dashboard:view", "users:view", "support:handle"],
 };
 
-export function can(role: AdminRole, perm: Permission): boolean {
-  return rolePermissions[role]?.includes(perm) ?? false;
+/** True se QUALQUER um dos papéis do usuário concede a permissão. */
+export function can(roles: AdminRole[], perm: Permission): boolean {
+  return roles.some((r) => rolePermissions[r]?.includes(perm));
 }
 
-// ---------------------------------------------
-// Demo credential store (replace with real backend in production).
-// ---------------------------------------------
-const DEMO_CREDENTIALS = [
-  {
-    email: "admin@fitflow.com.br",
-    password: "#Teste123",
-    account: {
-      id: "adm_1",
-      name: "Administrador",
-      email: "admin@fitflow.com.br",
-      role: "super_admin" as AdminRole,
-    },
-  },
-];
-
-const STORAGE_KEY = "fitflow.admin.session";
-const SESSION_MAX_AGE = 1000 * 60 * 60 * 24; // 24h persistent session
-
-// ---------------------------------------------
-// Tiny external store so components stay in sync without a context provider.
-// ---------------------------------------------
-let current: AdminSession | null = readStored();
-const listeners = new Set<() => void>();
-
-function readStored(): AdminSession | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as AdminSession;
-    if (Date.now() - parsed.issuedAt > SESSION_MAX_AGE) {
-      localStorage.removeItem(STORAGE_KEY);
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function emit() {
-  listeners.forEach((l) => l());
-}
-
-function subscribe(cb: () => void) {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
+/** Papel "mais alto" para exibição. */
+export function primaryRole(roles: AdminRole[]): AdminRole | null {
+  const order: AdminRole[] = ["super_admin", "admin", "editor", "support"];
+  return order.find((r) => roles.includes(r)) ?? null;
 }
 
 export class AdminAuthError extends Error {}
 
-/** Validates demo credentials and persists the session. */
-export async function adminSignIn(email: string, password: string): Promise<AdminSession> {
-  // Simulate a network round-trip for realistic UX (loading states).
-  await new Promise((r) => setTimeout(r, 600));
+// ---------------------------------------------
+// Ações de autenticação
+// ---------------------------------------------
 
-  const match = DEMO_CREDENTIALS.find(
-    (c) => c.email.toLowerCase() === email.trim().toLowerCase() && c.password === password,
-  );
-  if (!match) {
+/** Faz login via Supabase e valida que o usuário tem papel administrativo. */
+export async function adminSignIn(email: string, password: string): Promise<AdminAccount> {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim(),
+    password,
+  });
+
+  if (error || !data.user) {
     throw new AdminAuthError("E-mail ou senha inválidos");
   }
 
-  const session: AdminSession = { account: match.account, issuedAt: Date.now() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  current = session;
-  emit();
-  return session;
+  const roles = await fetchRoles();
+  if (roles.length === 0) {
+    // Usuário existe, mas não é staff — bloqueia e desfaz a sessão.
+    await supabase.auth.signOut();
+    throw new AdminAuthError("Esta conta não tem acesso ao painel administrativo");
+  }
+
+  return toAccount(data.session, roles);
 }
 
-export function adminSignOut() {
-  localStorage.removeItem(STORAGE_KEY);
-  current = null;
-  emit();
+export async function adminSignOut(): Promise<void> {
+  await supabase.auth.signOut();
 }
 
-/** Simulated password-recovery request (no real e-mail is sent in demo). */
+/** Envia e-mail de redefinição de senha pelo Supabase. */
 export async function adminRequestPasswordReset(email: string): Promise<void> {
-  await new Promise((r) => setTimeout(r, 700));
-  if (!email.trim()) throw new AdminAuthError("Informe um e-mail válido");
+  const trimmed = email.trim();
+  if (!trimmed) throw new AdminAuthError("Informe um e-mail válido");
+
+  const redirectTo = `${window.location.origin}/reset-password`;
+  const { error } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo });
+  if (error) throw new AdminAuthError(error.message);
 }
 
-// React hook — returns the live admin session (or null).
-export function useAdminAuth(): AdminSession | null {
-  return useSyncExternalStore(subscribe, () => current, () => current);
+// ---------------------------------------------
+// Helpers internos
+// ---------------------------------------------
+async function fetchRoles(): Promise<AdminRole[]> {
+  const { data, error } = await supabase.rpc("get_my_roles");
+  if (error || !data) return [];
+  return data as AdminRole[];
+}
+
+function toAccount(session: Session | null, roles: AdminRole[]): AdminAccount {
+  const user = session?.user;
+  const meta = (user?.user_metadata ?? {}) as { display_name?: string };
+  return {
+    id: user?.id ?? "",
+    email: user?.email ?? "",
+    name: meta.display_name || user?.email?.split("@")[0] || "Admin",
+    roles,
+  };
+}
+
+// ---------------------------------------------
+// Hook de sessão administrativa
+// ---------------------------------------------
+export interface AdminAuthState {
+  account: AdminAccount | null;
+  loading: boolean;
+}
+
+/**
+ * Observa a sessão Supabase e resolve os papéis do usuário. Retorna
+ * `account` apenas quando o usuário é staff; caso contrário, null.
+ */
+export function useAdminAuth(): AdminAuthState {
+  const [state, setState] = useState<AdminAuthState>({ account: null, loading: true });
+
+  useEffect(() => {
+    let active = true;
+
+    const resolve = async (session: Session | null) => {
+      if (!session?.user) {
+        if (active) setState({ account: null, loading: false });
+        return;
+      }
+      const roles = await fetchRoles();
+      if (!active) return;
+      setState({
+        account: roles.length > 0 ? toAccount(session, roles) : null,
+        loading: false,
+      });
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      // Adia a chamada RPC para fora do callback (recomendação do Supabase).
+      setTimeout(() => void resolve(session), 0);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => resolve(session));
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  return state;
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, AlertTriangle } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -43,13 +43,15 @@ export function AdminKpiCard({
 }: {
   label: string;
   value: string;
-  delta: number;
+  /** % variation. Pass undefined/null to hide the trend chip entirely. */
+  delta?: number | null;
   icon: ReactNode;
   spark?: number[];
   /** When true, a negative delta is "good" (e.g. churn). */
   invertDelta?: boolean;
 }) {
-  const positive = invertDelta ? delta < 0 : delta >= 0;
+  const hasDelta = delta !== undefined && delta !== null && delta !== 0;
+  const positive = invertDelta ? (delta ?? 0) < 0 : (delta ?? 0) >= 0;
   const sparkData = (spark ?? []).map((v, i) => ({ i, v }));
   // Sanitize for a valid SVG gradient id (no spaces/parens).
   const gradId = `spark-${label.replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -67,19 +69,19 @@ export function AdminKpiCard({
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span
-          className={cn(
-            "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
-            positive ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
-          )}
-        >
-          {positive ? (
-            <ArrowUpRight className="h-3 w-3" />
-          ) : (
-            <ArrowDownRight className="h-3 w-3" />
-          )}
-          {Math.abs(delta).toFixed(1)}%
-        </span>
+        {hasDelta ? (
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
+              positive ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive",
+            )}
+          >
+            {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+            {Math.abs(delta as number).toFixed(1)}%
+          </span>
+        ) : (
+          <span />
+        )}
 
         {sparkData.length > 0 && (
           <div className="h-8 w-20">
@@ -132,6 +134,62 @@ export function StatusPill({ tone, children }: { tone: Tone; children: ReactNode
     >
       {children}
     </span>
+  );
+}
+
+// ---------------------------------------------
+// Skeleton — shimmer placeholder while data loads.
+// ---------------------------------------------
+export function AdminSkeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "animate-pulse rounded-xl bg-secondary/70",
+        className,
+      )}
+    />
+  );
+}
+
+/** Grid of KPI-card-sized skeletons. */
+export function AdminKpiSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <AdminSkeleton key={i} className="h-[104px]" />
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------
+// Error state — shown when a query fails (e.g. RLS/permission).
+// ---------------------------------------------
+export function AdminErrorState({
+  message,
+  onRetry,
+}: {
+  message?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/15 text-destructive">
+        <AlertTriangle className="h-5 w-5" />
+      </span>
+      <p className="text-sm font-semibold">Não foi possível carregar os dados</p>
+      <p className="max-w-md text-xs text-muted-foreground">
+        {message || "Verifique sua conexão e se você tem permissão de acesso."}
+      </p>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="mt-2 rounded-lg bg-secondary px-3 py-1.5 text-xs font-semibold transition hover:bg-secondary/70"
+        >
+          Tentar novamente
+        </button>
+      )}
+    </div>
   );
 }
 

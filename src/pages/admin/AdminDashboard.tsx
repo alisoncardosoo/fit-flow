@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users as UsersIcon,
   UserCheck,
@@ -6,9 +7,6 @@ import {
   CreditCard,
   DollarSign,
   TrendingUp,
-  TrendingDown,
-  Target,
-  Download,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -24,217 +22,203 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import { Button } from "@/components/ui/button";
-import { AdminPageHeader, AdminKpiCard, AdminCard } from "@/components/admin/AdminUI";
 import {
-  getKpis,
-  userGrowth,
-  revenueMonthly,
-  planDistribution,
-  engagementHeatmap,
-  weekdayLabels,
-  fmtCurrency,
+  AdminPageHeader,
+  AdminKpiCard,
+  AdminCard,
+  AdminKpiSkeleton,
+  AdminSkeleton,
+  AdminErrorState,
+  AdminEmptyState,
+} from "@/components/admin/AdminUI";
+import {
+  fetchAdminKpis,
+  fetchUserGrowth,
+  fetchRevenueMonthly,
+  fetchPlanDistribution,
+  fetchEngagementHeatmap,
+} from "@/services/admin.service";
+import {
+  fmtCents,
   fmtNumber,
+  fmtCurrency,
+  shortDay,
+  shortMonth,
+  weekdayLabels,
+  planLabel,
 } from "@/lib/adminData";
 
 const PLAN_COLORS = ["hsl(140 6% 30%)", "hsl(88 100% 76%)", "hsl(120 75% 55%)"];
 
-function chartTooltip(formatter?: (v: number | string) => string) {
-  return {
-    contentStyle: {
-      background: "hsl(140 8% 9%)",
-      border: "1px solid hsl(140 6% 18%)",
-      borderRadius: 12,
-      fontSize: 12,
-    },
-    labelStyle: { color: "hsl(80 15% 90%)" },
-    itemStyle: { color: "hsl(80 15% 90%)" },
-    formatter,
-  };
-}
+const tip = {
+  contentStyle: { background: "hsl(140 8% 9%)", border: "1px solid hsl(140 6% 18%)", borderRadius: 12, fontSize: 12 },
+  labelStyle: { color: "hsl(80 15% 90%)" },
+  itemStyle: { color: "hsl(80 15% 90%)" },
+};
 
 export default function AdminDashboard() {
-  const k = getKpis();
-  const growthSpark = userGrowth.map((d) => d.total);
-  const revSpark = revenueMonthly.map((d) => d.receita);
+  const kpisQ = useQuery({ queryKey: ["admin", "kpis"], queryFn: fetchAdminKpis });
+  const growthQ = useQuery({ queryKey: ["admin", "growth"], queryFn: () => fetchUserGrowth(30) });
+  const revenueQ = useQuery({ queryKey: ["admin", "revenue"], queryFn: () => fetchRevenueMonthly(12) });
+  const plansQ = useQuery({ queryKey: ["admin", "plans"], queryFn: fetchPlanDistribution });
+  const heatQ = useQuery({ queryKey: ["admin", "heatmap"], queryFn: () => fetchEngagementHeatmap(90) });
 
-  const kpis: {
-    label: string;
-    value: string;
-    delta: number;
-    icon: JSX.Element;
-    spark: number[];
-    invert?: boolean;
-  }[] = [
-    { label: "Usuários totais", value: fmtNumber(k.total.value), delta: k.total.delta, icon: <UsersIcon className="h-4 w-4" />, spark: growthSpark },
-    { label: "Usuários ativos", value: fmtNumber(k.active.value), delta: k.active.delta, icon: <UserCheck className="h-4 w-4" />, spark: growthSpark.map((v) => v * 0.7) },
-    { label: "Novos hoje", value: fmtNumber(k.newToday.value), delta: k.newToday.delta, icon: <UserPlus className="h-4 w-4" />, spark: userGrowth.map((d) => d.novos) },
-    { label: "Assinantes ativos", value: fmtNumber(k.subscribers.value), delta: k.subscribers.delta, icon: <CreditCard className="h-4 w-4" />, spark: revSpark },
-    { label: "Receita mensal (MRR)", value: fmtCurrency(k.mrr.value), delta: k.mrr.delta, icon: <DollarSign className="h-4 w-4" />, spark: revSpark },
-    { label: "Receita anual (ARR)", value: fmtCurrency(k.arr.value), delta: k.arr.delta, icon: <TrendingUp className="h-4 w-4" />, spark: revSpark },
-    { label: "Churn", value: `${k.churn.value}%`, delta: k.churn.delta, icon: <TrendingDown className="h-4 w-4" />, invert: true, spark: [4.6, 4.2, 4.0, 3.9, 3.7, 3.5, 3.4] },
-    { label: "Taxa de retenção", value: `${k.retention.value}%`, delta: k.retention.delta, icon: <Target className="h-4 w-4" />, spark: [72, 73, 74, 75, 76, 77, 78.5] },
-  ];
+  const k = kpisQ.data;
+  const growth = growthQ.data ?? [];
+  const growthSpark = growth.map((d) => d.total);
 
-  const heatMax = Math.max(...engagementHeatmap.flat());
+  const kpis = k
+    ? [
+        { label: "Usuários totais", value: fmtNumber(k.totalUsers), icon: <UsersIcon className="h-4 w-4" />, spark: growthSpark },
+        { label: "Usuários ativos", value: fmtNumber(k.activeUsers), icon: <UserCheck className="h-4 w-4" />, spark: growthSpark.map((v) => Math.round(v * 0.7)) },
+        { label: "Novos hoje", value: fmtNumber(k.newToday), icon: <UserPlus className="h-4 w-4" />, spark: growth.map((d) => d.novos) },
+        { label: "Assinantes ativos", value: fmtNumber(k.activeSubscribers), icon: <CreditCard className="h-4 w-4" /> },
+        { label: "Receita mensal (MRR)", value: fmtCents(k.mrrCents), icon: <DollarSign className="h-4 w-4" /> },
+        { label: "Receita anual (ARR)", value: fmtCents(k.arrCents), icon: <TrendingUp className="h-4 w-4" /> },
+      ]
+    : [];
+
+  // Monta a matriz do heatmap [dow][hour] a partir das células retornadas.
+  const heatCells = heatQ.data ?? [];
+  const heatGrid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
+  heatCells.forEach((c) => {
+    if (c.dow >= 0 && c.dow < 7 && c.hour >= 0 && c.hour < 24) heatGrid[c.dow][c.hour] = c.sessions;
+  });
+  const heatMax = Math.max(1, ...heatCells.map((c) => c.sessions));
+
+  const planData = (plansQ.data ?? []).map((p) => ({ name: planLabel[p.code] ?? p.name, value: p.total, key: p.code }));
 
   return (
     <div>
       <AdminPageHeader
         title="Dashboard"
-        subtitle="Visão geral do negócio — 30 de maio de 2026"
-        actions={
-          <Button variant="outline" className="h-10 gap-1.5 rounded-xl border-border">
-            <Download className="h-4 w-4" /> Exportar relatório
-          </Button>
-        }
+        subtitle="Visão geral do negócio em tempo real"
       />
 
-      {/* KPI grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi, i) => (
-          <motion.div
-            key={kpi.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-          >
-            <AdminKpiCard
-              label={kpi.label}
-              value={kpi.value}
-              delta={kpi.delta}
-              icon={kpi.icon}
-              spark={kpi.spark}
-              invertDelta={kpi.invert}
-            />
-          </motion.div>
-        ))}
-      </div>
+      {/* KPIs */}
+      {kpisQ.isLoading ? (
+        <AdminKpiSkeleton count={6} />
+      ) : kpisQ.isError ? (
+        <AdminCard><AdminErrorState message={(kpisQ.error as Error)?.message} onRetry={() => kpisQ.refetch()} /></AdminCard>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {kpis.map((kpi, i) => (
+            <motion.div key={kpi.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+              <AdminKpiCard label={kpi.label} value={kpi.value} delta={0} icon={kpi.icon} spark={kpi.spark} />
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Charts row 1 */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <AdminCard
-          title="Crescimento de usuários"
-          subtitle="Últimos 30 dias"
-          className="lg:col-span-2"
-        >
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={userGrowth} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(88 100% 76%)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="hsl(88 100% 76%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(140 6% 16%)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} interval={4} />
-                <YAxis tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
-                <Tooltip {...chartTooltip((v) => fmtNumber(Number(v)))} />
-                <Area type="monotone" dataKey="total" name="Total" stroke="hsl(88 100% 76%)" strokeWidth={2.5} fill="url(#growthFill)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+        <AdminCard title="Crescimento de usuários" subtitle="Últimos 30 dias" className="lg:col-span-2">
+          {growthQ.isLoading ? (
+            <AdminSkeleton className="h-64" />
+          ) : growth.length === 0 ? (
+            <AdminEmptyState title="Sem dados de crescimento ainda" />
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={growth.map((d) => ({ ...d, label: shortDay(d.day) }))} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="growthFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(88 100% 76%)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="hsl(88 100% 76%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(140 6% 16%)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} interval={4} />
+                  <YAxis tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} width={48} />
+                  <Tooltip {...tip} formatter={(v) => fmtNumber(Number(v))} />
+                  <Area type="monotone" dataKey="total" name="Total" stroke="hsl(88 100% 76%)" strokeWidth={2.5} fill="url(#growthFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </AdminCard>
 
         <AdminCard title="Assinaturas" subtitle="Distribuição por plano">
-          <div className="flex h-64 flex-col items-center justify-center">
-            <ResponsiveContainer width="100%" height="80%">
-              <PieChart>
-                <Pie
-                  data={planDistribution}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={3}
-                  stroke="none"
-                >
-                  {planDistribution.map((_, i) => (
-                    <Cell key={i} fill={PLAN_COLORS[i]} />
-                  ))}
-                </Pie>
-                <Tooltip {...chartTooltip((v) => `${v} usuários`)} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex flex-wrap justify-center gap-3">
-              {planDistribution.map((p, i) => (
-                <div key={p.key} className="flex items-center gap-1.5 text-xs">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: PLAN_COLORS[i] }} />
-                  <span className="text-muted-foreground">{p.name}</span>
-                  <span className="font-semibold">{p.value}</span>
-                </div>
-              ))}
+          {plansQ.isLoading ? (
+            <AdminSkeleton className="h-64" />
+          ) : (
+            <div className="flex h-64 flex-col items-center justify-center">
+              <ResponsiveContainer width="100%" height="80%">
+                <PieChart>
+                  <Pie data={planData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={3} stroke="none">
+                    {planData.map((_, i) => (
+                      <Cell key={i} fill={PLAN_COLORS[i % PLAN_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip {...tip} formatter={(v) => `${v} usuários`} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-3">
+                {planData.map((p, i) => (
+                  <div key={p.key} className="flex items-center gap-1.5 text-xs">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: PLAN_COLORS[i % PLAN_COLORS.length] }} />
+                    <span className="text-muted-foreground">{p.name}</span>
+                    <span className="font-semibold">{p.value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </AdminCard>
       </div>
 
       {/* Charts row 2 */}
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <AdminCard title="Receita" subtitle="Mensal — receita vs meta">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={revenueMonthly} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(140 6% 16%)" vertical={false} />
-                <XAxis dataKey="mes" tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} width={56} tickFormatter={(v) => `${v / 1000}k`} />
-                <Tooltip {...chartTooltip((v) => fmtCurrency(Number(v)))} cursor={{ fill: "hsl(140 6% 12%)" }} />
-                <Bar dataKey="meta" name="Meta" fill="hsl(140 6% 22%)" radius={[6, 6, 0, 0]} maxBarSize={18} />
-                <Bar dataKey="receita" name="Receita" fill="hsl(88 100% 76%)" radius={[6, 6, 0, 0]} maxBarSize={18} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        <AdminCard title="Receita" subtitle="Mensal (últimos 12 meses)">
+          {revenueQ.isLoading ? (
+            <AdminSkeleton className="h-64" />
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={(revenueQ.data ?? []).map((r) => ({ mes: shortMonth(r.month), receita: r.revenueCents / 100 }))} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(140 6% 16%)" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: "hsl(90 8% 55%)", fontSize: 11 }} tickLine={false} axisLine={false} width={56} tickFormatter={(v) => `${v / 1000}k`} />
+                  <Tooltip {...tip} formatter={(v) => fmtCurrency(Number(v))} cursor={{ fill: "hsl(140 6% 12%)" }} />
+                  <Bar dataKey="receita" name="Receita" fill="hsl(88 100% 76%)" radius={[6, 6, 0, 0]} maxBarSize={28} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </AdminCard>
 
-        <AdminCard title="Engajamento" subtitle="Heatmap de uso por dia e horário">
-          <div className="overflow-x-auto">
-            <div className="min-w-[460px]">
-              {/* Hour axis */}
-              <div className="mb-1 flex pl-9">
-                {[0, 6, 12, 18, 23].map((h) => (
-                  <span
-                    key={h}
-                    className="text-[10px] text-muted-foreground"
-                    style={{ width: h === 23 ? "auto" : `${(6 / 24) * 100}%` }}
-                  >
-                    {h}h
-                  </span>
+        <AdminCard title="Engajamento" subtitle="Heatmap de sessões por dia e horário">
+          {heatQ.isLoading ? (
+            <AdminSkeleton className="h-64" />
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[460px]">
+                <div className="mb-1 flex pl-9 text-[10px] text-muted-foreground">
+                  {[0, 6, 12, 18, 23].map((h) => (
+                    <span key={h} style={{ width: h === 23 ? "auto" : `${(6 / 24) * 100}%` }}>{h}h</span>
+                  ))}
+                </div>
+                {heatGrid.map((row, d) => (
+                  <div key={d} className="mb-1 flex items-center gap-1">
+                    <span className="w-8 text-[10px] text-muted-foreground">{weekdayLabels[d]}</span>
+                    <div className="flex flex-1 gap-[2px]">
+                      {row.map((val, h) => {
+                        const intensity = val / heatMax;
+                        return (
+                          <div
+                            key={h}
+                            title={`${weekdayLabels[d]} ${h}h — ${val} sessões`}
+                            className="h-4 flex-1 rounded-[3px]"
+                            style={{ background: intensity < 0.05 ? "hsl(140 6% 13%)" : `hsl(88 100% 76% / ${0.15 + intensity * 0.85})` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
               </div>
-              {engagementHeatmap.map((row, d) => (
-                <div key={d} className="mb-1 flex items-center gap-1">
-                  <span className="w-8 text-[10px] text-muted-foreground">{weekdayLabels[d]}</span>
-                  <div className="flex flex-1 gap-[2px]">
-                    {row.map((val, h) => {
-                      const intensity = val / heatMax;
-                      return (
-                        <div
-                          key={h}
-                          title={`${weekdayLabels[d]} ${h}h — ${val}`}
-                          className="h-4 flex-1 rounded-[3px]"
-                          style={{
-                            background:
-                              intensity < 0.05
-                                ? "hsl(140 6% 13%)"
-                                : `hsl(88 100% 76% / ${0.15 + intensity * 0.85})`,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-              <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
-                Menos
-                <span className="h-3 w-3 rounded-[3px]" style={{ background: "hsl(140 6% 13%)" }} />
-                <span className="h-3 w-3 rounded-[3px]" style={{ background: "hsl(88 100% 76% / 0.4)" }} />
-                <span className="h-3 w-3 rounded-[3px]" style={{ background: "hsl(88 100% 76% / 0.7)" }} />
-                <span className="h-3 w-3 rounded-[3px]" style={{ background: "hsl(88 100% 76%)" }} />
-                Mais
-              </div>
             </div>
-          </div>
+          )}
         </AdminCard>
       </div>
     </div>

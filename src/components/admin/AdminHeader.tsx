@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { useAdminAuth, adminSignOut, roleLabel } from "@/lib/adminAuth";
+import { useAdminAuth, adminSignOut, roleLabel, primaryRole } from "@/lib/adminAuth";
 import { AdminSidebar } from "./AdminSidebar";
 
 /**
@@ -24,14 +24,14 @@ import { AdminSidebar } from "./AdminSidebar";
 export function AdminHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
-  const session = useAdminAuth();
-  const account = session?.account;
+  const { account } = useAdminAuth();
+  const role = account ? primaryRole(account.roles) : null;
   const initials = account?.name
     ? account.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()
     : "AD";
 
-  const handleSignOut = () => {
-    adminSignOut();
+  const handleSignOut = async () => {
+    await adminSignOut();
     toast.success("Sessão encerrada");
     navigate("/admin/login", { replace: true });
   };
@@ -120,7 +120,7 @@ export function AdminHeader() {
               <div className="hidden text-left leading-tight md:block">
                 <p className="text-sm font-semibold">{account?.name ?? "Admin"}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  {account ? roleLabel[account.role] : "Operação"}
+                  {role ? roleLabel[role] : "Operação"}
                 </p>
               </div>
             </button>
