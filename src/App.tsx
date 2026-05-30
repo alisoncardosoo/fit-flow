@@ -30,6 +30,21 @@ import ChallengeDetail from "./pages/ChallengeDetail";
 import FriendCompare from "./pages/FriendCompare";
 import SupportDev from "./pages/SupportDev";
 import NotFound from "./pages/NotFound";
+import { AdminShell } from "@/components/admin/AdminShell";
+import { RequireAdmin, RedirectIfAdmin } from "@/components/admin/RequireAdmin";
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminForgotPassword from "./pages/admin/AdminForgotPassword";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminWorkouts from "./pages/admin/AdminWorkouts";
+import AdminExercises from "./pages/admin/AdminExercises";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminRetention from "./pages/admin/AdminRetention";
+import AdminCoupons from "./pages/admin/AdminCoupons";
+import AdminSupport from "./pages/admin/AdminSupport";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +86,26 @@ const App = () => {
               <Route path="/challenges/new" element={<ChallengeNew />} />
               <Route path="/challenges/:id" element={<ChallengeDetail />} />
               <Route path="/support" element={<SupportDev />} />
+            </Route>
+
+            {/* Painel administrativo — autenticação própria + RBAC */}
+            <Route path="/admin/login" element={<RedirectIfAdmin><AdminLogin /></RedirectIfAdmin>} />
+            <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
+
+            {/* Painel administrativo — layout próprio (sidebar + header) */}
+            <Route element={<RequireAdmin><AdminShell /></RequireAdmin>}>
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/workouts" element={<AdminWorkouts />} />
+              <Route path="/admin/exercises" element={<AdminExercises />} />
+              <Route path="/admin/subscriptions" element={<AdminSubscriptions />} />
+              <Route path="/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
+              <Route path="/admin/retention" element={<AdminRetention />} />
+              <Route path="/admin/coupons" element={<AdminCoupons />} />
+              <Route path="/admin/support" element={<AdminSupport />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
