@@ -5,3 +5,11 @@ verify_jwt = false
 
 [functions.sync-exercise-catalog]
 verify_jwt = false
+
+# Webhooks de pagamento — chamados por serviços externos (sem JWT do Supabase).
+# A autenticidade é garantida pela verificação de assinatura dentro da função.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.mercadopago-webhook]
+verify_jwt = false

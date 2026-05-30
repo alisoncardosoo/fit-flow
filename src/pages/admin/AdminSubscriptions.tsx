@@ -50,6 +50,9 @@ export default function AdminSubscriptions() {
     acc[e.eventType] = (acc[e.eventType] ?? 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+  // Considera um gateway "conectado" quando já recebeu ao menos um evento.
+  const stripeConnected = events.some((e) => e.gateway === "stripe");
+  const mpConnected = events.some((e) => e.gateway === "mercadopago");
 
   return (
     <div>
@@ -100,16 +103,21 @@ export default function AdminSubscriptions() {
           <div className="space-y-2 text-sm">
             <div className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/40 p-3">
               <span className="font-medium">Stripe</span>
-              <StatusPill tone="muted">Não configurado</StatusPill>
+              <StatusPill tone={stripeConnected ? "success" : "muted"}>
+                {stripeConnected ? "Recebendo eventos" : "Aguardando webhook"}
+              </StatusPill>
             </div>
             <div className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/40 p-3">
               <span className="font-medium">Mercado Pago</span>
-              <StatusPill tone="muted">Não configurado</StatusPill>
+              <StatusPill tone={mpConnected ? "success" : "muted"}>
+                {mpConnected ? "Recebendo eventos" : "Aguardando webhook"}
+              </StatusPill>
             </div>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            Conecte um gateway de pagamento para registrar assinaturas e receita automaticamente.
-            As tabelas já estão prontas para receber os webhooks.
+            Os webhooks <span className="font-mono">stripe-webhook</span> e{" "}
+            <span className="font-mono">mercadopago-webhook</span> registram assinaturas e
+            receita automaticamente. Veja PAYMENTS_SETUP.md para configurar.
           </p>
         </AdminCard>
       </div>
